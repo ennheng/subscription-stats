@@ -1,5 +1,5 @@
 {
-  "name": "site-creator-vinext-starter",
+  "name": "subscription-stats",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -12,11 +12,14 @@
     "test": "npm run build && npm run db:migrate:local && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply site-creator-d1 --local"
+    "db:migrate:local": "wrangler d1 migrations apply site-creator-d1 --local",
+    "db:migrate:remote": "wrangler d1 migrations apply site-creator-d1 --remote"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.6.23",
+    "better-auth": "^1.6.23",
     "drizzle-orm": "0.45.2",
-    "next": "16.2.6",
+    "next": "16.2.10",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "simple-icons": "^16.26.0"
@@ -32,7 +35,7 @@
     "cross-env": "^10.1.0",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "16.2.10",
     "react-server-dom-webpack": "19.2.6",
     "sharp": "^0.35.3",
     "tailwindcss": "4.2.1",
@@ -40,6 +43,11 @@
     "vinext": "0.0.50",
     "vite": "8.0.13",
     "wrangler": "4.92.0"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.19"
+    }
   },
   "type": "module"
 }

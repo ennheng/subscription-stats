@@ -1,7 +1,9 @@
-import { asc } from "drizzle-orm";
+import { NextRequest } from "next/server";
+import { asc, eq } from "drizzle-orm";
 import { getDb } from "../../db";
 import { subscriptions } from "../../db/schema";
 import { advanceDate, formatYuan } from "../../lib/subscriptions";
+import { getSessionForHeaders } from "../../lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -26,39 +28,47 @@ function toIcsTimestamp(date: Date): string {
     .replace(/\.\d{3}/, "");
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const session = await getSessionForHeaders(request.headers);
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const locale = request.nextUrl.searchParams.get("lang") === "en" ? "en" : "zh-CN";
   const db = await getDb();
   const rows = await db
     .select()
     .from(subscriptions)
+    .where(eq(subscriptions.userId, session.user.id))
     .orderBy(asc(subscriptions.nextDueDate), asc(subscriptions.id));
 
   const dtstamp = toIcsTimestamp(new Date());
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//shared-subscriptions//ZH-CN",
+    "PRODID:-//Subscription Stats//Calendar//EN",
     "CALSCALE:GREGORIAN",
-    "X-WR-CALNAME:合租订阅",
+    `X-WR-CALNAME:${locale === "zh-CN" ? "订阅统计" : "Subscription Stats"}`,
   ];
 
   for (const sub of rows) {
     let due = sub.nextDueDate;
     for (let i = 0; i < OCCURRENCES; i += 1) {
       const description = [
-        sub.ownerContact ? `车主:${sub.ownerContact}` : "",
-        `我的份额:${formatYuan(sub.shareCents)}`,
-        sub.note ? `备注:${sub.note}` : "",
+        sub.ownerContact
+          ? `${locale === "zh-CN" ? "联系人" : "Contact"}:${sub.ownerContact}`
+          : "",
+        `${locale === "zh-CN" ? "我的份额" : "My share"}:${formatYuan(sub.shareCents)}`,
+        sub.note ? `${locale === "zh-CN" ? "备注" : "Notes"}:${sub.note}` : "",
       ]
         .filter(Boolean)
         .join("\n");
 
       lines.push(
         "BEGIN:VEVENT",
-        `UID:sub-${sub.id}-${due}@shared-subscriptions`,
+        `UID:sub-${sub.id}-${due}@subscription-stats`,
         `DTSTAMP:${dtstamp}`,
         `DTSTART;VALUE=DATE:${toIcsDate(due)}`,
-        `SUMMARY:${escapeIcsText(`续费 ${sub.name} ${formatYuan(sub.shareCents)}`)}`,
+        `SUMMARY:${escapeIcsText(`${locale === "zh-CN" ? "续费" : "Renew"} ${sub.name} ${formatYuan(sub.shareCents)}`)}`,
         `DESCRIPTION:${escapeIcsText(description)}`,
         "END:VEVENT",
       );
@@ -71,7 +81,7 @@ export async function GET() {
   return new Response(lines.join("\r\n"), {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="subscriptions.ics"',
+      "Content-Disposition": 'attachment; filename="subscription-stats.ics"',
     },
   });
 }

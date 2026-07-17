@@ -1,5 +1,5 @@
-const CACHE_PREFIX = "shared-subscriptions-";
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_PREFIX = "subscription-stats-";
+const CACHE_NAME = `${CACHE_PREFIX}v3`;
 const CORE_ASSETS = [
   "/offline.html",
   "/manifest.webmanifest",
@@ -50,7 +50,9 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
+          // Only guest pages are safe to cache. Account pages can contain
+          // private server-rendered data and must never survive sign-out.
+          if (response.ok && url.pathname.startsWith("/guest")) {
             const copy = response.clone();
             void caches
               .open(CACHE_NAME)
@@ -61,7 +63,7 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(async () => {
           return (
-            (await caches.match(request)) ??
+            (url.pathname.startsWith("/guest") ? await caches.match(request) : undefined) ??
             (await caches.match("/offline.html")) ??
             new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } })
           );

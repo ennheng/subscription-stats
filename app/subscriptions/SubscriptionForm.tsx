@@ -3,8 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SUBSCRIPTION_PRESETS } from "../../lib/presets";
-import { CYCLE_LABELS, type Cycle } from "../../lib/subscriptions";
+import {
+  isValidDateString,
+  parseYuan,
+  type Cycle,
+} from "../../lib/subscriptions";
+import {
+  deleteGuestSubscription,
+  saveGuestSubscription,
+} from "../../lib/guest-subscriptions";
 import { ServiceIcon } from "../../components/ServiceIcon";
+import { useI18n } from "../I18nProvider";
 
 export interface SubscriptionFormInitial {
   name: string;
@@ -20,13 +29,20 @@ interface Props {
   mode: "create" | "edit";
   subscriptionId?: number;
   initial?: Partial<SubscriptionFormInitial>;
+  storageMode?: "cloud" | "guest";
 }
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition-colors placeholder:text-stone-300 focus:border-orange-400 focus:ring-2 focus:ring-orange-100";
 
-export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
+export function SubscriptionForm({
+  mode,
+  subscriptionId,
+  initial,
+  storageMode = "cloud",
+}: Props) {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const [form, setForm] = useState<SubscriptionFormInitial>({
     name: initial?.name ?? "",
     ownerContact: initial?.ownerContact ?? "",
@@ -57,18 +73,24 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
   }
 
   async function onDelete() {
-    if (!window.confirm(`确认删除「${form.name}」?`)) return;
-    if (!window.confirm("删除后无法恢复,其付款记录也会一并清除。仍要删除吗?")) return;
+    if (!window.confirm(t.deleteConfirm(form.name))) return;
+    if (!window.confirm(t.deleteFinalConfirm)) return;
 
     setDeleting(true);
     setError(null);
     try {
+      if (storageMode === "guest") {
+        if (subscriptionId !== undefined) deleteGuestSubscription(subscriptionId);
+        window.location.replace("/guest");
+        return;
+      }
       const res = await fetch(`/api/subscriptions/${subscriptionId}`, {
         method: "DELETE",
+        headers: { "Accept-Language": locale },
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "删除失败,请重试");
+        setError(body?.error ?? t.deleteFailed);
         return;
       }
       window.location.replace("/");
@@ -82,16 +104,41 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
     setPending(true);
     setError(null);
     try {
+      if (storageMode === "guest") {
+        const totalPriceCents = form.totalPrice.trim() ? parseYuan(form.totalPrice) : null;
+        const shareCents = parseYuan(form.share);
+        if (!form.name.trim()) return setError(t.invalidName);
+        if (form.totalPrice.trim() && (totalPriceCents === null || totalPriceCents < 0)) {
+          return setError(t.invalidTotalPrice);
+        }
+        if (shareCents === null || shareCents < 0) return setError(t.invalidShare);
+        if (!isValidDateString(form.nextDueDate)) return setError(t.invalidDate);
+        const saved = saveGuestSubscription(
+          {
+            name: form.name.trim(),
+            ownerContact: form.ownerContact.trim(),
+            totalPriceCents,
+            shareCents,
+            cycle: form.cycle,
+            nextDueDate: form.nextDueDate,
+            note: form.note.trim(),
+          },
+          mode === "edit" ? subscriptionId : undefined,
+        );
+        if (!saved) return setError(t.saveFailed);
+        window.location.replace("/guest");
+        return;
+      }
       const url =
         mode === "create" ? "/api/subscriptions" : `/api/subscriptions/${subscriptionId}`;
       const res = await fetch(url, {
         method: mode === "create" ? "POST" : "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept-Language": locale },
         body: JSON.stringify(form),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "保存失败,请重试");
+        setError(body?.error ?? t.saveFailed);
         return;
       }
       window.location.replace("/");
@@ -104,7 +151,7 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
       {mode === "create" && (
         <div className="text-sm font-medium text-stone-700">
-          常见订阅
+          {t.commonSubscriptions}
           <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
             {SUBSCRIPTION_PRESETS.map((preset) => (
               <button
@@ -140,36 +187,36 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-stone-300 text-base text-white">
                 ＋
               </span>
-              <span className="w-full truncate text-center text-stone-600">自定义</span>
+              <span className="w-full truncate text-center text-stone-600">{t.custom}</span>
             </button>
           </div>
         </div>
       )}
 
       <label className="block text-sm font-medium text-stone-700">
-        订阅名称
+        {t.subscriptionName}
         <input
           required
           value={form.name}
           onChange={(e) => update("name", e.target.value)}
-          placeholder="如 Netflix"
+          placeholder={t.subscriptionNamePlaceholder}
           className={inputClass}
         />
       </label>
 
       <label className="block text-sm font-medium text-stone-700">
-        车主联系方式
+        {t.ownerContact}
         <input
           value={form.ownerContact}
           onChange={(e) => update("ownerContact", e.target.value)}
-          placeholder="如 微信-小明"
+          placeholder={t.ownerContactPlaceholder}
           className={inputClass}
         />
       </label>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="block text-sm font-medium text-stone-700">
-          总价(¥/期)<span className="ml-1 text-xs text-neutral-400">选填</span>
+          {t.totalPrice}<span className="ml-1 text-xs text-neutral-400">{t.optional}</span>
           <input
             inputMode="decimal"
             value={form.totalPrice}
@@ -179,7 +226,7 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
           />
         </label>
         <label className="block text-sm font-medium text-stone-700">
-          我的份额(¥/期)
+          {t.sharePrice}
           <input
             required
             inputMode="decimal"
@@ -193,21 +240,21 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="block text-sm font-medium text-stone-700">
-          付款周期
+          {t.paymentCycle}
           <select
             value={form.cycle}
             onChange={(e) => update("cycle", e.target.value as Cycle)}
             className={inputClass}
           >
-            {(Object.keys(CYCLE_LABELS) as Cycle[]).map((cycle) => (
+            {(["monthly", "quarterly", "yearly"] as Cycle[]).map((cycle) => (
               <option key={cycle} value={cycle}>
-                {CYCLE_LABELS[cycle]}
+                {t[cycle]}
               </option>
             ))}
           </select>
         </label>
         <label className="block text-sm font-medium text-stone-700">
-          下次到期日
+          {t.nextDueDate}
           <input
             required
             type="date"
@@ -219,11 +266,11 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
       </div>
 
       <label className="block text-sm font-medium text-stone-700">
-        备注
+        {t.note}
         <textarea
           value={form.note}
           onChange={(e) => update("note", e.target.value)}
-          placeholder="账号信息、车位备注等"
+          placeholder={t.notePlaceholder}
           rows={3}
           className={inputClass}
         />
@@ -239,14 +286,14 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
           disabled={pending}
           className="rounded-full bg-orange-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-500 disabled:opacity-50"
         >
-          {pending ? "保存中…" : "保存"}
+          {pending ? t.saving : t.save}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
           className="text-sm text-stone-500 transition-colors hover:text-stone-700"
         >
-          取消
+          {t.cancel}
         </button>
         {mode === "edit" && (
           <button
@@ -255,7 +302,7 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
             disabled={deleting}
             className="ml-auto text-sm text-red-600 transition-colors hover:text-red-700 disabled:opacity-50"
           >
-            {deleting ? "删除中…" : "删除订阅"}
+            {deleting ? t.deleting : t.deleteSubscription}
           </button>
         )}
       </div>

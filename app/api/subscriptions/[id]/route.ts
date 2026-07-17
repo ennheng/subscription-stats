@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { subscriptions } from "../../../../db/schema";
-import { validateSubscriptionPayload } from "../route";
+import { getSessionForHeaders } from "../../../../lib/auth";
+import { isSameOriginMutation } from "../../../../lib/request-security";
+import { apiLocale, subscriptionApiMessages, validateSubscriptionPayload } from "../route";
 
 function toRouteErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : "Unexpected error";
@@ -27,20 +29,25 @@ async function parseId(context: RouteContext): Promise<number | null> {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const messages = subscriptionApiMessages(apiLocale(request));
+    const session = await getSessionForHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const id = await parseId(context);
     if (id === null) {
-      return NextResponse.json({ error: "无效的订阅 ID" }, { status: 400 });
+      return NextResponse.json({ error: messages.invalidId }, { status: 400 });
     }
 
     const db = await getDb();
     const [subscription] = await db
       .select()
       .from(subscriptions)
-      .where(eq(subscriptions.id, id));
+      .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, session.user.id)));
     if (!subscription) {
-      return NextResponse.json({ error: "订阅不存在" }, { status: 404 });
+      return NextResponse.json({ error: messages.notFound }, { status: 404 });
     }
     return NextResponse.json({ subscription });
   } catch (error) {
@@ -48,21 +55,29 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const messages = subscriptionApiMessages(apiLocale(request));
+    if (!isSameOriginMutation(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const session = await getSessionForHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const id = await parseId(context);
     if (id === null) {
-      return NextResponse.json({ error: "无效的订阅 ID" }, { status: 400 });
+      return NextResponse.json({ error: messages.invalidId }, { status: 400 });
     }
 
     const db = await getDb();
     // payments rows are removed by ON DELETE CASCADE.
     const [deleted] = await db
       .delete(subscriptions)
-      .where(eq(subscriptions.id, id))
+      .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, session.user.id)))
       .returning();
     if (!deleted) {
-      return NextResponse.json({ error: "订阅不存在" }, { status: 404 });
+      return NextResponse.json({ error: messages.notFound }, { status: 404 });
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -72,15 +87,24 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
+    const locale = apiLocale(request);
+    const messages = subscriptionApiMessages(locale);
+    if (!isSameOriginMutation(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const session = await getSessionForHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const id = await parseId(context);
     if (id === null) {
-      return NextResponse.json({ error: "无效的订阅 ID" }, { status: 400 });
+      return NextResponse.json({ error: messages.invalidId }, { status: 400 });
     }
 
     const payload = (await request.json()) as Parameters<
       typeof validateSubscriptionPayload
     >[0];
-    const parsed = validateSubscriptionPayload(payload);
+    const parsed = validateSubscriptionPayload(payload, locale);
     if ("error" in parsed) {
       return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
@@ -89,10 +113,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const [subscription] = await db
       .update(subscriptions)
       .set(parsed.value)
-      .where(eq(subscriptions.id, id))
+      .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, session.user.id)))
       .returning();
     if (!subscription) {
-      return NextResponse.json({ error: "订阅不存在" }, { status: 404 });
+      return NextResponse.json({ error: messages.notFound }, { status: 404 });
     }
     return NextResponse.json({ subscription });
   } catch (error) {

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
 import { payments, subscriptions } from "../../../../../db/schema";
 import { settleCurrentPeriod } from "../../../../../lib/subscriptions";
+import { getSessionForHeaders } from "../../../../../lib/auth";
+import { isSameOriginMutation } from "../../../../../lib/request-security";
+import { apiLocale, subscriptionApiMessages } from "../../route";
 
 function toRouteErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : "Unexpected error";
@@ -21,21 +24,29 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-export async function POST(_request: NextRequest, context: RouteContext) {
+export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const messages = subscriptionApiMessages(apiLocale(request));
+    if (!isSameOriginMutation(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const session = await getSessionForHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { id: rawId } = await context.params;
     const id = Number(rawId);
     if (!Number.isInteger(id) || id <= 0) {
-      return NextResponse.json({ error: "无效的订阅 ID" }, { status: 400 });
+      return NextResponse.json({ error: messages.invalidId }, { status: 400 });
     }
 
     const db = await getDb();
     const [subscription] = await db
       .select()
       .from(subscriptions)
-      .where(eq(subscriptions.id, id));
+      .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, session.user.id)));
     if (!subscription) {
-      return NextResponse.json({ error: "订阅不存在" }, { status: 404 });
+      return NextResponse.json({ error: messages.notFound }, { status: 404 });
     }
 
     await db.insert(payments).values({
@@ -50,7 +61,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
     const [updated] = await db
       .update(subscriptions)
       .set({ nextDueDate })
-      .where(eq(subscriptions.id, id))
+      .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, session.user.id)))
       .returning();
 
     return NextResponse.json({ subscription: updated });

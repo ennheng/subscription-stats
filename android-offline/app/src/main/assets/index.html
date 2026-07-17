@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#f5f2ed">
+  <title>订阅统计 · Subscription Stats · Offline</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ink: #1c1917;
+      --muted: #78716c;
+      --paper: #f5f2ed;
+      --orange: #ea580c;
+      --line: rgba(255,255,255,.82);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      color: var(--ink);
+      background:
+        radial-gradient(700px 420px at 90% -6%, rgba(249,115,22,.17), transparent 62%),
+        radial-gradient(620px 480px at -18% 75%, rgba(14,165,233,.09), transparent 62%),
+        var(--paper);
+      -webkit-tap-highlight-color: transparent;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .shell {
+      width: min(100%, 720px);
+      min-height: 100dvh;
+      margin: auto;
+      padding: max(22px, env(safe-area-inset-top)) 16px max(38px, env(safe-area-inset-bottom));
+    }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .logo {
+      width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center;
+      border-radius: 16px; color: white; font-size: 20px; font-weight: 800;
+      background: linear-gradient(145deg,#f97316,#c2410c);
+      box-shadow: 0 10px 24px rgba(234,88,12,.24), inset 0 1px rgba(255,255,255,.35);
+    }
+    h1 { margin: 0; font-size: 22px; letter-spacing: -.04em; }
+    .tagline { margin: 2px 0 0; color: #a8a29e; font-size: 11px; }
+    .top-actions { display: flex; align-items: center; gap: 7px; }
+    .pill, .ghost, .primary, .danger {
+      border: 0; border-radius: 999px; padding: 10px 13px; font-weight: 650; font-size: 12px;
+    }
+    .pill { color: #047857; background: rgba(209,250,229,.72); border: 1px solid rgba(167,243,208,.7); }
+    .ghost { color: #57534e; background: rgba(255,255,255,.58); border: 1px solid var(--line); box-shadow: 0 3px 12px rgba(41,37,36,.04); }
+    .primary { color: white; background: var(--orange); box-shadow: 0 9px 22px rgba(234,88,12,.22); }
+    .danger { color: #b91c1c; background: #fef2f2; }
+    .hero-note {
+      margin-top: 18px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 9px;
+      border: 1px solid rgba(167,243,208,.62); border-radius: 18px;
+      color: #047857; background: rgba(236,253,245,.55); font-size: 12px; line-height: 1.55;
+    }
+    .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 16px; }
+    .glass {
+      border: 1px solid var(--line); border-radius: 24px; background: rgba(255,255,255,.58);
+      box-shadow: 0 18px 46px rgba(41,37,36,.065), inset 0 1px rgba(255,255,255,.86);
+      backdrop-filter: blur(22px) saturate(145%);
+    }
+    .stat { min-height: 112px; padding: 15px; overflow: hidden; }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { margin-top: 14px; font-size: clamp(17px,5vw,24px); font-weight: 750; letter-spacing: -.04em; white-space: nowrap; }
+    .stat-hint { margin-top: 4px; color: #a8a29e; font-size: 10px; }
+    .toolbar { margin-top: 28px; display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+    h2 { margin: 0; font-size: 18px; letter-spacing: -.025em; }
+    .subtitle { margin: 3px 0 0; color: #a8a29e; font-size: 11px; }
+    .toolbar-buttons { display: flex; gap: 7px; }
+    .chart { margin-top: 12px; padding: 18px; }
+    .chart-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .chart-total { color: var(--muted); font-size: 12px; }
+    .chart-total strong { color: var(--ink); font-size: 16px; }
+    .chart-body { display: grid; grid-template-columns: 126px 1fr; gap: 20px; align-items: center; margin-top: 18px; }
+    .donut {
+      width: 126px; aspect-ratio: 1; position: relative; border-radius: 50%;
+      background: conic-gradient(#e7e5e4 0 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.7);
+    }
+    .donut::after { content: ""; position: absolute; inset: 27px; border-radius: 50%; background: #f8f6f2; box-shadow: 0 0 0 1px rgba(255,255,255,.9); }
+    .bar-list { min-width: 0; display: grid; gap: 10px; }
+    .bar-row { display: grid; grid-template-columns: minmax(64px,92px) 1fr 34px; align-items: center; gap: 7px; font-size: 10px; }
+    .bar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #57534e; }
+    .bar-track { height: 7px; border-radius: 999px; background: rgba(231,229,228,.66); overflow: hidden; }
+    .bar-fill { height: 100%; min-width: 4px; border-radius: inherit; }
+    .bar-pct { color: #a8a29e; text-align: right; }
+    .cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 11px; margin-top: 12px; }
+    .card { position: relative; min-height: 190px; padding: 17px 14px 14px; text-align: center; }
+    .service-icon {
+      width: 58px; height: 58px; margin: 0 auto; display: grid; place-items: center;
+      border-radius: 17px; color: white; font-size: 24px; font-weight: 750;
+      box-shadow: 0 12px 26px rgba(41,37,36,.13);
+    }
+    .card h3 { margin: 13px 0 0; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .price { margin: 5px 0 0; font-weight: 720; }
+    .cycle { margin-left: 4px; color: #a8a29e; font-size: 11px; font-weight: 450; }
+    .due { display: inline-flex; margin-top: 8px; padding: 4px 9px; border-radius: 999px; color: #78716c; background: rgba(255,255,255,.72); font-size: 10px; }
+    .due.soon { color: #c2410c; background: #ffedd5; }
+    .due.overdue { color: #b91c1c; background: #fee2e2; }
+    .card-actions { display: flex; justify-content: center; gap: 7px; margin-top: 10px; }
+    .mini { border: 0; border-radius: 999px; padding: 6px 9px; font-size: 10px; color: #57534e; background: rgba(255,255,255,.78); }
+    .mini.paid { color: #047857; background: #d1fae5; }
+    .empty { margin-top: 58px; padding: 34px 16px; text-align: center; color: #a8a29e; }
+    .empty-icon { font-size: 42px; }
+    .empty strong { display: block; margin-top: 12px; color: #57534e; }
+    .empty p { margin: 7px auto 0; max-width: 280px; font-size: 12px; line-height: 1.6; }
+    .overlay {
+      position: fixed; inset: 0; z-index: 20; display: none; align-items: end; justify-content: center;
+      padding-top: env(safe-area-inset-top); background: rgba(28,25,23,.42); backdrop-filter: blur(8px);
+    }
+    .overlay.open { display: flex; }
+    .sheet {
+      width: min(100%,720px); max-height: 94dvh; overflow: auto; padding: 18px 18px max(24px,env(safe-area-inset-bottom));
+      border-radius: 30px 30px 0 0; background: #f9f7f3; box-shadow: 0 -20px 70px rgba(28,25,23,.18);
+    }
+    .sheet-head { position: sticky; top: -18px; z-index: 2; display: flex; align-items: center; justify-content: space-between; margin: -18px -18px 14px; padding: 18px; background: rgba(249,247,243,.94); backdrop-filter: blur(18px); }
+    .close { width: 36px; height: 36px; border: 0; border-radius: 50%; color: #57534e; background: white; font-size: 18px; }
+    .presets { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; }
+    .preset { flex: 0 0 auto; min-width: 70px; padding: 9px 10px; border: 1px solid #e7e5e4; border-radius: 16px; color: #57534e; background: white; font-size: 11px; }
+    .preset.active { border-color: #fb923c; color: #c2410c; background: #fff7ed; box-shadow: 0 0 0 3px #ffedd5; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    label { display: block; color: #57534e; font-size: 12px; font-weight: 650; }
+    label.full { grid-column: 1/-1; }
+    input, select, textarea {
+      width: 100%; margin-top: 6px; border: 1px solid #e7e5e4; border-radius: 14px; padding: 12px;
+      color: var(--ink); background: rgba(255,255,255,.88); outline: none; font-size: 14px;
+    }
+    input:focus, select:focus, textarea:focus { border-color: #fb923c; box-shadow: 0 0 0 4px #ffedd5; }
+    textarea { min-height: 72px; resize: vertical; }
+    .form-error { display: none; margin: 13px 0 0; padding: 10px 12px; border-radius: 14px; color: #b91c1c; background: #fef2f2; font-size: 12px; }
+    .form-error.show { display: block; }
+    .form-actions { display: flex; gap: 9px; margin-top: 17px; }
+    .form-actions .primary { flex: 1; border-radius: 15px; padding: 13px; }
+    .form-actions .danger { display: none; border-radius: 15px; }
+    .form-actions .danger.show { display: block; }
+    .toast { position: fixed; z-index: 40; left: 50%; bottom: max(24px,env(safe-area-inset-bottom)); transform: translate(-50%,16px); padding: 10px 15px; border-radius: 999px; color: white; background: rgba(28,25,23,.92); font-size: 12px; opacity: 0; pointer-events: none; transition: .2s ease; }
+    .toast.show { opacity: 1; transform: translate(-50%,0); }
+    [hidden] { display: none !important; }
+    @media (max-width: 430px) {
+      .tagline { display: none; }
+      .top-actions .pill { display: none; }
+      .stats { gap: 7px; }
+      .stat { min-height: 102px; padding: 13px 11px; border-radius: 21px; }
+      .stat-hint { display: none; }
+      .chart-body { grid-template-columns: 104px 1fr; gap: 13px; }
+      .donut { width: 104px; }
+      .donut::after { inset: 23px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <div class="logo">R</div>
+        <div><h1 id="brand">订阅统计</h1><p class="tagline" id="tagline">订阅支出，一目了然</p></div>
+      </div>
+      <div class="top-actions">
+        <span class="pill" id="offlinePill">纯离线</span>
+        <button class="ghost" id="languageButton">EN</button>
+      </div>
+    </header>
+
+    <div class="hero-note"><span>✓</span><span id="privacyNote">所有数据只保存在这台 Android 设备中。无需登录，也不会连接网络。</span></div>
+
+    <section class="stats" aria-label="Overview">
+      <article class="glass stat"><div class="stat-label" id="monthlyLabel">月均支出</div><div class="stat-value" id="monthlyValue">¥0</div><div class="stat-hint" id="monthlyHint">每月平均分摊</div></article>
+      <article class="glass stat"><div class="stat-label" id="annualLabel">年付合计</div><div class="stat-value" id="annualValue">¥0</div><div class="stat-hint" id="annualHint">按全年折算</div></article>
+      <article class="glass stat"><div class="stat-label" id="attentionLabel">待处理</div><div class="stat-value" id="attentionValue">无</div><div class="stat-hint" id="attentionHint">续费状态正常</div></article>
+    </section>
+
+    <div class="toolbar">
+      <div><h2 id="listTitle">订阅清单</h2><p class="subtitle" id="listSubtitle">按下次续费时间排序</p></div>
+      <div class="toolbar-buttons"><button class="ghost" id="exportButton">导出 ICS</button><button class="primary" id="addButton">＋ 新增</button></div>
+    </div>
+
+    <section class="glass chart" id="chart" hidden>
+      <div class="chart-head"><div><h2 id="chartTitle">支出构成</h2><p class="subtitle" id="chartHint">按当前订阅折算年度占比</p></div><div class="chart-total"><span id="chartTotalLabel">预计年支出</span><br><strong id="chartTotal">¥0</strong></div></div>
+      <div class="chart-body"><div class="donut" id="donut"></div><div class="bar-list" id="barList"></div></div>
+    </section>
+
+    <section class="cards" id="cards"></section>
+    <section class="empty" id="empty"><div class="empty-icon">🧾</div><strong id="emptyTitle">还没有订阅</strong><p id="emptyBody">新增第一项订阅后，月均与年度统计会立即自动计算。</p></section>
+  </div>
+
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true">
+    <div class="sheet">
+      <div class="sheet-head"><h2 id="formTitle">新增订阅</h2><button class="close" id="closeButton">×</button></div>
+      <div class="presets" id="presets"></div>
+      <form id="form">
+        <div class="form-grid">
+          <label class="full"><span id="nameLabel">订阅名称</span><input id="nameInput" maxlength="60" required></label>
+          <label><span id="shareLabel">我的份额（¥/期）</span><input id="shareInput" inputmode="decimal" required></label>
+          <label><span id="totalLabel">总价（¥/期）</span><input id="totalInput" inputmode="decimal" placeholder="选填"></label>
+          <label><span id="cycleLabel">付款周期</span><select id="cycleInput"><option value="monthly">月付</option><option value="quarterly">季付</option><option value="yearly">年付</option></select></label>
+          <label><span id="dateLabel">下次到期日</span><input id="dateInput" type="date" required></label>
+          <label class="full"><span id="ownerLabel">合租联系人</span><input id="ownerInput" maxlength="80" placeholder="选填"></label>
+          <label class="full"><span id="noteLabel">备注</span><textarea id="noteInput" maxlength="300" placeholder="选填"></textarea></label>
+        </div>
+        <p class="form-error" id="formError"></p>
+        <div class="form-actions"><button type="button" class="danger" id="deleteButton">删除</button><button class="primary" id="saveButton">保存</button></div>
+      </form>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (() => {
+      "use strict";
+      const STORAGE_KEY = "subscription_stats_android_subscriptions_v1";
+      const LOCALE_KEY = "subscription_stats_android_locale";
+      const LEGACY_STORAGE_KEY = "renewary_android_subscriptions_v1";
+      const LEGACY_LOCALE_KEY = "renewary_android_locale";
+      const colors = ["#ea580c","#0ea5e9","#8b5cf6","#10b981","#f43f5e","#f59e0b","#6366f1","#14b8a6"];
+      const presetData = [
+        ["Netflix","yearly","N","#e50914"],["iCloud+","monthly","☁","#3693f5"],
+        ["Spotify","monthly","◉","#1ed760"],["ChatGPT Plus","monthly","C","#10a37f"],
+        ["Lightroom","yearly","Lr","#2563eb"],["Windy","yearly","W","#7c3aed"],
+        ["Kimi","yearly","K","#111827"]
+      ];
+      const dict = {
+        zh: {
+          brand:"订阅统计",tagline:"订阅支出，一目了然",offline:"纯离线",privacy:"所有数据只保存在这台 Android 设备中。无需登录，也不会连接网络。",
+          monthly:"月均支出",monthlyHint:"每月平均分摊",annual:"年付合计",annualHint:"按全年折算",attention:"待处理",normal:"无",normalHint:"续费状态正常",
+          overdue:n=>`${n} 笔逾期`,soon:n=>`${n} 笔将到期`,list:"订阅清单",listHint:"按下次续费时间排序",export:"导出 ICS",add:"新增",
+          chart:"支出构成",chartHint:"按当前订阅折算年度占比",chartTotal:"预计年支出",empty:"还没有订阅",emptyBody:"新增第一项订阅后，月均与年度统计会立即自动计算。",
+          addTitle:"新增订阅",editTitle:"编辑订阅",name:"订阅名称",share:"我的份额（¥/期）",total:"总价（¥/期）",cycle:"付款周期",date:"下次到期日",owner:"合租联系人",note:"备注",optional:"选填",
+          monthlyCycle:"月付",quarterlyCycle:"季付",yearlyCycle:"年付",save:"保存",remove:"删除",edit:"编辑",paid:"标记已付",today:"今天续费",inDays:n=>`${n} 天后续费`,overdueDays:n=>`已逾期 ${n} 天`,
+          invalid:"请完整填写名称、份额、周期和有效日期。",confirmDelete:n=>`确认删除「${n}」？`,confirmPaid:n=>`确认「${n}」本期已付款？到期日将顺延一个周期。`,saved:"已保存",deleted:"已删除",advanced:"到期日已顺延",nothing:"还没有可导出的订阅",custom:"自定义"
+        },
+        en: {
+          brand:"Subscription Stats",tagline:"Track every subscription clearly",offline:"Fully offline",privacy:"Everything stays on this Android device. No account and no network connection.",
+          monthly:"Monthly average",monthlyHint:"Average monthly share",annual:"Annual total",annualHint:"Annualized estimate",attention:"Attention",normal:"None",normalHint:"Renewals are on track",
+          overdue:n=>`${n} overdue`,soon:n=>`${n} due soon`,list:"Subscriptions",listHint:"Sorted by next renewal",export:"Export ICS",add:"Add",
+          chart:"Spending mix",chartHint:"Annualized from current subscriptions",chartTotal:"Estimated annual spend",empty:"No subscriptions yet",emptyBody:"Add your first subscription and the monthly and annual totals will update immediately.",
+          addTitle:"Add subscription",editTitle:"Edit subscription",name:"Subscription name",share:"My share (¥/period)",total:"Total (¥/period)",cycle:"Billing cycle",date:"Next renewal date",owner:"Shared account contact",note:"Notes",optional:"optional",
+          monthlyCycle:"Monthly",quarterlyCycle:"Quarterly",yearlyCycle:"Yearly",save:"Save",remove:"Delete",edit:"Edit",paid:"Mark paid",today:"Renews today",inDays:n=>`Renews in ${n} days`,overdueDays:n=>`${n} days overdue`,
+          invalid:"Enter a name, valid share, billing cycle, and renewal date.",confirmDelete:n=>`Delete “${n}”?`,confirmPaid:n=>`Mark this ${n} period paid and advance its date?`,saved:"Saved",deleted:"Deleted",advanced:"Renewal date advanced",nothing:"There are no subscriptions to export",custom:"Custom"
+        }
+      };
+      let locale = localStorage.getItem(LOCALE_KEY) || localStorage.getItem(LEGACY_LOCALE_KEY) || ((window.SubscriptionStatsAndroid && SubscriptionStatsAndroid.deviceLanguage() !== "zh") ? "en" : "zh");
+      let rows = loadRows();
+      let editingId = null;
+
+      const $ = id => document.getElementById(id);
+      const money = cents => `¥${(cents / 100).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", { maximumFractionDigits: 2 })}`;
+      const html = value => String(value).replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+      const parseMoney = value => { const n = Number(String(value).trim()); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null; };
+      const cycleFactor = cycle => cycle === "monthly" ? 12 : cycle === "quarterly" ? 4 : 1;
+      const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+      const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
+      const daysLeft = value => Math.round((new Date(`${value}T00:00:00`).getTime() - new Date(`${isoToday()}T00:00:00`).getTime()) / 86400000);
+      const cycleText = cycle => ({monthly:dict[locale].monthlyCycle,quarterly:dict[locale].quarterlyCycle,yearly:dict[locale].yearlyCycle})[cycle];
+
+      function loadRows() {
+        try { const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY) || "[]"); return Array.isArray(value) ? value : []; }
+        catch { return []; }
+      }
+      function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); render(); }
+      function annual(row) { return row.shareCents * cycleFactor(row.cycle); }
+      function colorFor(row, index) { const preset = presetData.find(item => item[0].toLowerCase() === row.name.toLowerCase()); return preset ? preset[3] : colors[index % colors.length]; }
+      function iconFor(row) { const preset = presetData.find(item => item[0].toLowerCase() === row.name.toLowerCase()); return preset ? preset[2] : row.name.trim().slice(0,1).toUpperCase(); }
+      function advance(value, cycle) {
+        const [year,month,day] = value.split("-").map(Number);
+        const add = cycle === "monthly" ? 1 : cycle === "quarterly" ? 3 : 12;
+        const total = year * 12 + month - 1 + add;
+        const targetYear = Math.floor(total / 12), targetMonth = total % 12;
+        const maxDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+        return `${targetYear}-${String(targetMonth+1).padStart(2,"0")}-${String(Math.min(day,maxDay)).padStart(2,"0")}`;
+      }
+      function toast(message) { $("toast").textContent = message; $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 1500); }
+
+      function applyLanguage() {
+        const t = dict[locale]; document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+        const values = {brand:t.brand,tagline:t.tagline,offlinePill:t.offline,privacyNote:t.privacy,monthlyLabel:t.monthly,monthlyHint:t.monthlyHint,annualLabel:t.annual,annualHint:t.annualHint,attentionLabel:t.attention,attentionHint:t.normalHint,listTitle:t.list,listSubtitle:t.listHint,exportButton:t.export,chartTitle:t.chart,chartHint:t.chartHint,chartTotalLabel:t.chartTotal,emptyTitle:t.empty,emptyBody:t.emptyBody,nameLabel:t.name,shareLabel:t.share,totalLabel:t.total,cycleLabel:t.cycle,dateLabel:t.date,ownerLabel:t.owner,noteLabel:t.note,saveButton:t.save,deleteButton:t.remove};
+        Object.entries(values).forEach(([id,value]) => $(id).textContent = value);
+        $("addButton").textContent = `＋ ${t.add}`; $("languageButton").textContent = locale === "zh" ? "EN" : "中";
+        $("totalInput").placeholder = t.optional; $("ownerInput").placeholder = t.optional; $("noteInput").placeholder = t.optional;
+        const opts = $("cycleInput").options; opts[0].text=t.monthlyCycle; opts[1].text=t.quarterlyCycle; opts[2].text=t.yearlyCycle;
+        renderPresets(); render();
+      }
+
+      function renderPresets() {
+        const t = dict[locale];
+        $("presets").innerHTML = presetData.map((item,index) => `<button type="button" class="preset" data-preset="${index}">${html(item[0])}</button>`).join("") + `<button type="button" class="preset" data-preset="custom">${t.custom}</button>`;
+        $("presets").querySelectorAll("button").forEach(button => button.addEventListener("click", () => {
+          $("presets").querySelectorAll("button").forEach(item => item.classList.remove("active")); button.classList.add("active");
+          if (button.dataset.preset !== "custom") { const item = presetData[Number(button.dataset.preset)]; $("nameInput").value=item[0]; $("cycleInput").value=item[1]; }
+        }));
+      }
+
+      function render() {
+        const t = dict[locale];
+        rows.sort((a,b) => a.nextDueDate.localeCompare(b.nextDueDate));
+        const yearly = rows.reduce((sum,row) => sum + annual(row),0);
+        $("monthlyValue").textContent = money(yearly / 12);
+        $("annualValue").textContent = money(yearly);
+        const overdue = rows.filter(row => daysLeft(row.nextDueDate) < 0).length;
+        const soon = rows.filter(row => daysLeft(row.nextDueDate) >= 0 && daysLeft(row.nextDueDate) <= 7).length;
+        $("attentionValue").textContent = overdue ? t.overdue(overdue) : soon ? t.soon(soon) : t.normal;
+        $("attentionValue").style.color = overdue ? "#dc2626" : soon ? "#ea580c" : "#1c1917";
+        $("empty").hidden = rows.length > 0; $("cards").hidden = rows.length === 0; $("chart").hidden = rows.length === 0;
+        $("chartTotal").textContent = money(yearly);
+
+        let cursor = 0; const segments=[];
+        rows.forEach((row,index) => { const pct = yearly ? annual(row)/yearly*100 : 0; segments.push(`${colorFor(row,index)} ${cursor}% ${cursor+pct}%`); cursor += pct; });
+        $("donut").style.background = segments.length ? `conic-gradient(${segments.join(",")})` : "#e7e5e4";
+        $("barList").innerHTML = rows.slice().sort((a,b)=>annual(b)-annual(a)).slice(0,6).map((row,index) => {
+          const pct = yearly ? Math.round(annual(row)/yearly*100) : 0; const sourceIndex = rows.indexOf(row);
+          return `<div class="bar-row"><span class="bar-name">${html(row.name)}</span><span class="bar-track"><span class="bar-fill" style="display:block;width:${pct}%;background:${colorFor(row,sourceIndex)}"></span></span><span class="bar-pct">${pct}%</span></div>`;
+        }).join("");
+
+        $("cards").innerHTML = rows.map((row,index) => {
+          const days = daysLeft(row.nextDueDate); const status = days < 0 ? t.overdueDays(Math.abs(days)) : days === 0 ? t.today : t.inDays(days);
+          const dueClass = days < 0 ? "overdue" : days <= 7 ? "soon" : "";
+          return `<article class="glass card"><div class="service-icon" style="background:${colorFor(row,index)}">${html(iconFor(row))}</div><h3>${html(row.name)}</h3><p class="price">${money(row.shareCents)}<span class="cycle">${cycleText(row.cycle)}</span></p><span class="due ${dueClass}">${html(status)}</span><div class="card-actions"><button class="mini" data-edit="${row.id}">${t.edit}</button><button class="mini paid" data-paid="${row.id}">✓ ${t.paid}</button></div></article>`;
+        }).join("");
+        $("cards").querySelectorAll("[data-edit]").forEach(button => button.addEventListener("click", () => openForm(Number(button.dataset.edit))));
+        $("cards").querySelectorAll("[data-paid]").forEach(button => button.addEventListener("click", () => markPaid(Number(button.dataset.paid))));
+      }
+
+      function openForm(id=null) {
+        editingId=id; const t=dict[locale]; const row=rows.find(item=>item.id===id);
+        $("formTitle").textContent=row?t.editTitle:t.addTitle; $("deleteButton").classList.toggle("show",!!row); $("formError").classList.remove("show");
+        $("presets").querySelectorAll("button").forEach(item=>item.classList.remove("active"));
+        $("nameInput").value=row?.name||""; $("shareInput").value=row?row.shareCents/100:""; $("totalInput").value=row?.totalPriceCents==null?"":row.totalPriceCents/100; $("cycleInput").value=row?.cycle||"yearly"; $("dateInput").value=row?.nextDueDate||isoToday(); $("ownerInput").value=row?.ownerContact||""; $("noteInput").value=row?.note||"";
+        $("overlay").classList.add("open"); setTimeout(()=>$("nameInput").focus(),120);
+      }
+      function closeForm(){ $("overlay").classList.remove("open"); }
+      function save(event) {
+        event.preventDefault(); const t=dict[locale]; const share=parseMoney($("shareInput").value); const total=$("totalInput").value.trim()===""?null:parseMoney($("totalInput").value);
+        if (!$("nameInput").value.trim() || share===null || ($("totalInput").value.trim()!==""&&total===null) || !validDate($("dateInput").value)) { $("formError").textContent=t.invalid; $("formError").classList.add("show"); return; }
+        const value={id:editingId||Math.max(0,...rows.map(row=>row.id))+1,name:$("nameInput").value.trim(),ownerContact:$("ownerInput").value.trim(),totalPriceCents:total,shareCents:share,cycle:$("cycleInput").value,nextDueDate:$("dateInput").value,note:$("noteInput").value.trim(),createdAt:new Date().toISOString()};
+        const index=rows.findIndex(row=>row.id===editingId); if(index>=0)value.createdAt=rows[index].createdAt;
+        if(index>=0)rows[index]=value; else rows.push(value); persist(); closeForm(); toast(t.saved);
+      }
+      function remove() { const row=rows.find(item=>item.id===editingId),t=dict[locale]; if(!row||!confirm(t.confirmDelete(row.name)))return; rows=rows.filter(item=>item.id!==editingId); persist(); closeForm(); toast(t.deleted); }
+      function markPaid(id) { const row=rows.find(item=>item.id===id),t=dict[locale]; if(!row||!confirm(t.confirmPaid(row.name)))return; row.nextDueDate=advance(row.nextDueDate,row.cycle); persist(); toast(t.advanced); }
+
+      const escapeIcs = value => String(value).replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n");
+      function exportIcs() {
+        const t=dict[locale]; if(!rows.length){toast(t.nothing);return;} const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+        const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Subscription Stats//Android Offline//EN","CALSCALE:GREGORIAN",`X-WR-CALNAME:${locale==="zh"?"订阅统计":"Subscription Stats"}`];
+        rows.forEach(row=>{let due=row.nextDueDate;for(let i=0;i<8;i++){const summary=locale==="zh"?`续费 ${row.name} ${money(row.shareCents)}`:`Renew ${row.name} ${money(row.shareCents)}`;const description=[row.ownerContact?`${locale==="zh"?"联系人":"Contact"}: ${row.ownerContact}`:"",`${locale==="zh"?"我的份额":"My share"}: ${money(row.shareCents)}`,row.note?`${locale==="zh"?"备注":"Notes"}: ${row.note}`:""].filter(Boolean).join("\n");lines.push("BEGIN:VEVENT",`UID:android-${row.id}-${due}@subscription-stats`,`DTSTAMP:${stamp}`,`DTSTART;VALUE=DATE:${due.replaceAll("-","")}`,`SUMMARY:${escapeIcs(summary)}`,`DESCRIPTION:${escapeIcs(description)}`,"END:VEVENT");due=advance(due,row.cycle);}}); lines.push("END:VCALENDAR");
+        const content=lines.join("\r\n"); if(window.SubscriptionStatsAndroid){SubscriptionStatsAndroid.exportIcs(content);}else{const blob=new Blob([content],{type:"text/calendar"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="subscription-stats.ics";a.click();URL.revokeObjectURL(url);}
+      }
+
+      $("languageButton").addEventListener("click",()=>{locale=locale==="zh"?"en":"zh";localStorage.setItem(LOCALE_KEY,locale);applyLanguage();});
+      $("addButton").addEventListener("click",()=>openForm()); $("closeButton").addEventListener("click",closeForm); $("overlay").addEventListener("click",event=>{if(event.target===$("overlay"))closeForm();});
+      $("form").addEventListener("submit",save); $("deleteButton").addEventListener("click",remove); $("exportButton").addEventListener("click",exportIcs);
+      applyLanguage();
+    })();
+  </script>
+</body>
+</html>

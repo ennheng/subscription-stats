@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Configure test-only auth secret
+        run: printf 'BETTER_AUTH_SECRET=github-actions-test-secret-at-least-32-characters\n' > .dev.vars
+      - run: npm run lint
+      - run: npm test
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and lint offline APK
+        working-directory: android-offline
+        run: ./gradlew assembleDebug lintDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: renewary-offline-debug
+          path: android-offline/app/build/outputs/apk/debug/app-debug.apk

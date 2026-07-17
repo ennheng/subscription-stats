@@ -1,48 +1,36 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import { useI18n } from "./I18nProvider";
 
-const STORAGE_KEY = "onboarding-seen-v1";
-
-const steps = [
-  {
-    title: "新增订阅",
-    body: "点右上角「+ 新增订阅」。挑一个常见服务自动填名称和周期,或选「自定义」自己填。",
-  },
-  {
-    title: "编辑 / 删除",
-    body: "点任意一张卡片即可打开编辑页,改价格、周期、到期日;页面底部有「删除订阅」。",
-  },
-  {
-    title: "标记已付",
-    body: "每张卡右上角的「已付」会在你付完本期后点一下,到期日自动顺延一个周期。",
-  },
-];
+const STORAGE_KEY = "subscription-stats-onboarding-seen-v3";
 
 const subscribe = () => () => {};
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 
-function readInitialStep(): number | null {
+function readInitialStep(scope: string): number | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) ? null : 0;
+    return window.localStorage.getItem(`${STORAGE_KEY}:${scope}`) ? null : 0;
   } catch {
     return null;
   }
 }
 
-export function Onboarding() {
+export function Onboarding({ storageScope = "cloud" }: { storageScope?: string }) {
+  const { t } = useI18n();
+  const steps = t.onboarding;
   const hydrated = useSyncExternalStore(
     subscribe,
     getClientSnapshot,
     getServerSnapshot,
   );
-  const [step, setStep] = useState<number | null>(readInitialStep);
+  const [step, setStep] = useState<number | null>(() => readInitialStep(storageScope));
 
   function finish() {
     try {
-      window.localStorage.setItem(STORAGE_KEY, "1");
+      window.localStorage.setItem(`${STORAGE_KEY}:${storageScope}`, "1");
     } catch {
       /* ignore */
     }
@@ -65,7 +53,7 @@ export function Onboarding() {
             onClick={finish}
             className="text-xs text-neutral-400 hover:text-neutral-600"
           >
-            跳过
+            {t.skip}
           </button>
         </div>
 
@@ -88,7 +76,7 @@ export function Onboarding() {
             onClick={() => (isLast ? finish() : setStep(step + 1))}
             className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-700"
           >
-            {isLast ? "开始使用" : "下一步"}
+            {isLast ? t.startUsing : t.next}
           </button>
         </div>
       </div>

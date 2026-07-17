@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "合租订阅",
-  "short_name": "合租订阅",
-  "description": "追踪合租订阅的到期日与开销。",
+  "name": "订阅统计 · Subscription Stats",
+  "short_name": "订阅统计",
+  "description": "Track subscriptions, renewal dates and annual spending privately. 私密管理订阅、续费日期与年度开销。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",
@@ -22,9 +22,9 @@
   ],
   "shortcuts": [
     {
-      "name": "新增订阅",
-      "short_name": "新增",
-      "description": "快速添加一项合租订阅",
+      "name": "新增订阅 / Add subscription",
+      "short_name": "新增 / Add",
+      "description": "快速添加一项订阅 / Quickly add a subscription",
       "url": "/subscriptions/new",
       "icons": [
         { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }

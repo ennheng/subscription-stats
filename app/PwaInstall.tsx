@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { useI18n } from "./I18nProvider";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -36,6 +37,7 @@ function getPlatformSnapshot(): Platform {
 }
 
 export function PwaInstall() {
+  const { t } = useI18n();
   const standalone = useSyncExternalStore(
     subscribeStandalone,
     getStandaloneSnapshot,
@@ -91,9 +93,9 @@ export function PwaInstall() {
         type="button"
         onClick={install}
         className="rounded-full border border-white/80 bg-white/55 px-3 py-2.5 text-stone-600 shadow-sm backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:bg-white/80 hover:text-stone-900"
-        aria-label="安装合租订阅应用"
+        aria-label={t.installApp}
       >
-        ↓ 安装
+        ↓ {t.install}
       </button>
 
       {showGuide && (
@@ -106,16 +108,16 @@ export function PwaInstall() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-medium text-orange-600">三端共用同一套数据</p>
+                <p className="text-xs font-medium text-orange-600">{t.installGuideEyebrow}</p>
                 <h2 id="install-guide-title" className="mt-1 text-xl font-semibold tracking-tight text-stone-900">
-                  安装到你的设备
+                  {t.installGuideTitle}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setShowGuide(false)}
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-lg text-stone-400 transition-colors hover:bg-white hover:text-stone-700"
-                aria-label="关闭安装说明"
+                aria-label={t.closeInstallGuide}
               >
                 ×
               </button>
@@ -126,7 +128,7 @@ export function PwaInstall() {
                 <div className="rounded-2xl border border-white/70 bg-white/55 p-4">
                   <p className="font-semibold text-stone-800">iPhone / iPad</p>
                   <p className="mt-1.5 leading-relaxed text-stone-500">
-                    用 Safari 打开本站，点底部「分享」按钮，再选择「添加到主屏幕」。
+                    {t.iosInstall}
                   </p>
                 </div>
               )}
@@ -134,14 +136,14 @@ export function PwaInstall() {
                 <div className="rounded-2xl border border-white/70 bg-white/55 p-4">
                   <p className="font-semibold text-stone-800">Android</p>
                   <p className="mt-1.5 leading-relaxed text-stone-500">
-                    用 Chrome 打开本站，点右上角菜单，再选择「安装应用」或「添加到主屏幕」。
+                    {t.androidInstall}
                   </p>
                 </div>
               )}
             </div>
 
             <p className="mt-4 text-xs leading-relaxed text-stone-400">
-              安装后会像普通 App 一样从桌面启动；网页端仍可直接使用。
+              {t.installedHint}
             </p>
           </section>
         </div>

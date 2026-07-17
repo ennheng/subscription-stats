@@ -15,6 +15,13 @@
       "when": 1784270082080,
       "tag": "0001_military_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784289976679,
+      "tag": "0002_premium_masque",
+      "breakpoints": true
     }
   ]
 }

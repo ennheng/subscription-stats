@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ServiceIcon } from "../components/ServiceIcon";
 import { findPresetByName } from "../lib/presets";
 import { formatYuan, type SpendingRow } from "../lib/subscriptions";
+import { useI18n } from "./I18nProvider";
 
 interface Props {
   totalAnnualCents: number;
@@ -151,17 +152,18 @@ function PieGlyph() {
 
 export function SpendingChart({ totalAnnualCents, rows, percents }: Props) {
   const [mode, setMode] = useState<"bar" | "pie">("bar");
+  const { t } = useI18n();
 
   return (
     <section data-testid="spending-chart" className="glass-strong mt-5 rounded-[28px] p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-stone-900">支出构成</h2>
-          <p className="mt-0.5 text-xs text-stone-400">按当前订阅折算年度占比</p>
+          <h2 className="text-base font-semibold tracking-tight text-stone-900">{t.spendingComposition}</h2>
+          <p className="mt-0.5 text-xs text-stone-400">{t.annualCompositionHint}</p>
         </div>
         <div className="flex items-center gap-3.5">
           <div className="text-right">
-            <p className="text-[11px] text-stone-400">预计年支出</p>
+            <p className="text-[11px] text-stone-400">{t.estimatedAnnualSpend}</p>
             <p className="text-lg font-semibold tracking-[-0.03em] text-stone-900">
               {formatYuan(totalAnnualCents)}
             </p>
@@ -172,8 +174,8 @@ export function SpendingChart({ totalAnnualCents, rows, percents }: Props) {
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                title={m === "bar" ? "条状图" : "饼状图"}
-                aria-label={m === "bar" ? "条状图" : "饼状图"}
+                title={m === "bar" ? t.barChart : t.pieChart}
+                aria-label={m === "bar" ? t.barChart : t.pieChart}
                 className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${
                   mode === m
                     ? "bg-orange-600 text-white shadow-sm"

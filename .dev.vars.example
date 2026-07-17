@@ -1,0 +1,3 @@
+# Copy this file to .dev.vars for local development and replace the value.
+# Generate a secret with at least 32 random characters. Never commit .dev.vars.
+BETTER_AUTH_SECRET=replace-with-a-random-secret-at-least-32-characters

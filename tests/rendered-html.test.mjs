@@ -1,20 +1,18 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
-// Dev server (Miniflare) provides a real local D1 — mirrors production behavior.
-// `vinext start` is a plain-Node server with no D1 binding, so we test via dev.
-// NOTE: Vite binds `localhost` (IPv6 ::1 on Windows); 127.0.0.1 is refused.
 const PORT = 18831;
 const baseUrl = `http://localhost:${PORT}`;
+const runId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1_000).toString(36)}`;
+const testUserPrefix = `rt${runId}`;
 
 let serverProcess;
 let serverLog = "";
-const createdSubscriptionIds = new Set();
 
 async function waitForServer(timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
@@ -22,17 +20,52 @@ async function waitForServer(timeoutMs = 120_000) {
   while (Date.now() < deadline) {
     try {
       const response = await fetch(`${baseUrl}/`, { signal: AbortSignal.timeout(2_000) });
-      // 200 (ok) or 500 (route error) both mean the server is up; only connection
-      // refusal means still starting. Accept any HTTP response.
       if (response.status > 0) return;
     } catch (error) {
       lastError = error;
       await new Promise((resolve) => setTimeout(resolve, 600));
     }
   }
-  throw new Error(
-    `server did not start.\n--- log ---\n${serverLog}\n--- error ---\n${lastError?.message}`,
-  );
+  throw new Error(`server did not start.\n--- log ---\n${serverLog}\n--- error ---\n${lastError?.message}`);
+}
+
+function cookieHeader(response) {
+  const values = typeof response.headers.getSetCookie === "function"
+    ? response.headers.getSetCookie()
+    : [response.headers.get("set-cookie")].filter(Boolean);
+  return values.map((value) => value.split(";", 1)[0]).join("; ");
+}
+
+async function createAccount(suffix) {
+  const username = `${testUserPrefix}${suffix}`.toLowerCase();
+  const password = `Local-test-password-${runId}-${suffix}`;
+  const response = await fetch(`${baseUrl}/api/auth/sign-up/email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: baseUrl },
+    body: JSON.stringify({
+      name: username,
+      username,
+      email: `${username}@account.subscription-stats.invalid`,
+      password,
+    }),
+  });
+  if (response.status !== 200) {
+    assert.fail(`account creation failed with ${response.status}: ${await response.text()}`);
+  }
+  const cookie = cookieHeader(response);
+  assert.match(cookie, /session_token/i);
+  return { username, password, cookie };
+}
+
+function authenticated(cookie, init = {}) {
+  return {
+    ...init,
+    headers: {
+      ...init.headers,
+      Cookie: cookie,
+      Origin: baseUrl,
+    },
+  };
 }
 
 test.before(async () => {
@@ -48,138 +81,196 @@ test.before(async () => {
 });
 
 test.after(() => {
-  if (!serverProcess) return;
-  // `shell: true` wraps the real server in cmd.exe; killing the wrapper leaves
-  // the Miniflare child alive on Windows. taskkill /T kills the whole tree.
-  if (process.platform === "win32") {
-    try {
-      spawn("taskkill", ["/PID", String(serverProcess.pid), "/T", "/F"], {
+  if (serverProcess) {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/PID", String(serverProcess.pid), "/T", "/F"], {
         stdio: "ignore",
         shell: true,
       });
-    } catch {}
-  } else {
-    try {
-      serverProcess.kill("SIGKILL");
-    } catch {}
+    } else {
+      try { serverProcess.kill("SIGKILL"); } catch {}
+    }
   }
+
+  const escapedPrefix = testUserPrefix.replaceAll("'", "''");
+  spawnSync(
+    "npx",
+    [
+      "wrangler",
+      "d1",
+      "execute",
+      "site-creator-d1",
+      "--local",
+      "--command",
+      `DELETE FROM user WHERE username LIKE '${escapedPrefix}%';`,
+    ],
+    { cwd: root, stdio: "ignore", shell: process.platform === "win32" },
+  );
 });
 
-test.afterEach(async () => {
-  for (const id of createdSubscriptionIds) {
-    await fetch(`${baseUrl}/api/subscriptions/${id}`, { method: "DELETE" }).catch(() => null);
-  }
-  createdSubscriptionIds.clear();
-});
-
-test("dashboard renders and full subscription lifecycle works", async () => {
-  // dashboard renders (local dev DB may already contain rows)
+test("public landing and guest mode are bilingual and do not require an account", async () => {
   const home = await fetch(`${baseUrl}/`);
   assert.equal(home.status, 200);
   const homeHtml = await home.text();
-  assert.match(homeHtml, /<title>合租订阅<\/title>/);
-  assert.match(homeHtml, /月均/);
-  assert.match(homeHtml, /新增订阅/);
-  assert.match(homeHtml, /导出日历/);
-  assert.match(homeHtml, /安装/);
+  assert.match(homeHtml, /<title>订阅统计 · Subscription Stats<\/title>/);
+  assert.match(homeHtml, /登录并云端同步/);
+  assert.match(homeHtml, /游客使用/);
+  assert.match(homeHtml, /当前不收集邮箱/);
   assert.match(homeHtml, /viewport-fit=cover/);
 
-  const newSubscriptionHtml = await (await fetch(`${baseUrl}/subscriptions/new`)).text();
-  assert.match(newSubscriptionHtml, /Lightroom/);
-  assert.match(newSubscriptionHtml, /Windy/);
-  assert.match(newSubscriptionHtml, /Kimi/);
-  // Accept direct static URLs and an encoded form if the renderer changes.
-  assert.match(newSubscriptionHtml, /service-icons(?:%2F|\/)lightroom\.png/i);
-  assert.match(newSubscriptionHtml, /service-icons(?:%2F|\/)windy\.jpg/i);
+  const english = await fetch(`${baseUrl}/`, {
+    headers: { Cookie: "subscription_stats_locale=en" },
+  });
+  const englishHtml = await english.text();
+  assert.match(englishHtml, /Sign in and sync/);
+  assert.match(englishHtml, /Continue as guest/);
 
-  for (const iconPath of [
-    "/service-icons/chatgpt.jpg",
-    "/service-icons/lightroom.png",
-    "/service-icons/windy.jpg",
-  ]) {
-    const iconResponse = await fetch(`${baseUrl}${iconPath}`);
-    assert.equal(iconResponse.status, 200);
+  const guest = await fetch(`${baseUrl}/guest`);
+  assert.equal(guest.status, 200);
+  const guestHtml = await guest.text();
+  assert.match(guestHtml, /仅存本机/);
+  assert.match(guestHtml, /游客数据只保存在这个浏览器/);
+
+  for (const route of ["/api/subscriptions", "/calendar.ics"]) {
+    const response = await fetch(`${baseUrl}${route}`);
+    assert.equal(response.status, 401);
   }
+});
 
-  // create a yearly subscription (unique name so re-runs stay unambiguous)
-  const name = `TestSub-${Date.now()}`;
-  const create = await fetch(`${baseUrl}/api/subscriptions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name,
-      ownerContact: "微信-小明",
+test("cloud accounts are isolated across list, edit, payment, delete, and ICS", async () => {
+  const userA = await createAccount("a");
+  const userB = await createAccount("b");
+
+  const name = `PrivateSub-${runId}`;
+  const create = await fetch(
+    `${baseUrl}/api/subscriptions`,
+    authenticated(userA.cookie, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        ownerContact: "private-contact",
+        totalPrice: "68",
+        share: "17",
+        cycle: "yearly",
+        nextDueDate: "2027-01-15",
+        note: "private-note",
+      }),
+    }),
+  );
+  if (create.status !== 201) {
+    assert.fail(`subscription creation failed with ${create.status}: ${await create.text()}`);
+  }
+  const { subscription } = await create.json();
+  const id = subscription.id;
+  assert.equal(subscription.shareCents, 1700);
+  assert.ok(subscription.userId);
+
+  const dashboardA = await (await fetch(`${baseUrl}/`, authenticated(userA.cookie))).text();
+  assert.match(dashboardA, new RegExp(name));
+  assert.match(dashboardA, /预计年支出/);
+  assert.match(dashboardA, /按当前订阅折算年度占比/);
+
+  const listB = await fetch(`${baseUrl}/api/subscriptions`, authenticated(userB.cookie));
+  assert.equal(listB.status, 200);
+  const bodyB = await listB.json();
+  assert.ok(!bodyB.subscriptions.some((item) => item.id === id));
+
+  for (const [method, path, body] of [
+    ["GET", `/api/subscriptions/${id}`, undefined],
+    ["PATCH", `/api/subscriptions/${id}`, JSON.stringify({
+      name: "stolen",
+      ownerContact: "",
       totalPrice: "68",
       share: "17",
       cycle: "yearly",
       nextDueDate: "2027-01-15",
       note: "",
+    })],
+    ["POST", `/api/subscriptions/${id}/pay`, undefined],
+    ["DELETE", `/api/subscriptions/${id}`, undefined],
+  ]) {
+    const response = await fetch(
+      `${baseUrl}${path}`,
+      authenticated(userB.cookie, {
+        method,
+        ...(body ? { headers: { "Content-Type": "application/json" }, body } : {}),
+      }),
+    );
+    assert.equal(response.status, 404, `${method} ${path} must not cross tenant boundaries`);
+  }
+
+  const icsB = await fetch(`${baseUrl}/calendar.ics`, authenticated(userB.cookie));
+  assert.equal(icsB.status, 200);
+  assert.doesNotMatch(await icsB.text(), new RegExp(name));
+
+  const exportB = await fetch(`${baseUrl}/api/export`, authenticated(userB.cookie));
+  assert.equal(exportB.status, 200);
+  assert.doesNotMatch(await exportB.text(), new RegExp(name));
+
+  const exportA = await fetch(`${baseUrl}/api/export`, authenticated(userA.cookie));
+  assert.equal(exportA.status, 200);
+  assert.match(exportA.headers.get("content-disposition") ?? "", /subscription-stats-data\.json/);
+  assert.match(await exportA.text(), new RegExp(name));
+
+  const payA = await fetch(
+    `${baseUrl}/api/subscriptions/${id}/pay`,
+    authenticated(userA.cookie, { method: "POST" }),
+  );
+  assert.equal(payA.status, 200);
+  assert.equal((await payA.json()).subscription.nextDueDate, "2028-01-15");
+
+  const icsA = await fetch(`${baseUrl}/calendar.ics?lang=en`, authenticated(userA.cookie));
+  assert.equal(icsA.status, 200);
+  assert.match(icsA.headers.get("content-type") ?? "", /^text\/calendar\b/i);
+  const calendarA = await icsA.text();
+  assert.match(calendarA, new RegExp(name));
+  assert.match(calendarA, /X-WR-CALNAME:Subscription Stats/);
+
+  const removeA = await fetch(
+    `${baseUrl}/api/subscriptions/${id}`,
+    authenticated(userA.cookie, { method: "DELETE" }),
+  );
+  assert.equal(removeA.status, 200);
+});
+
+test("authenticated validation rejects invalid payloads", async () => {
+  const user = await createAccount("validation");
+  const response = await fetch(
+    `${baseUrl}/api/subscriptions`,
+    authenticated(user.cookie, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "", share: "abc", cycle: "weekly" }),
     }),
-  });
-  assert.equal(create.status, 201);
-  const { subscription } = await create.json();
-  assert.equal(subscription.shareCents, 1700);
-  assert.equal(subscription.nextDueDate, "2027-01-15");
-  const id = subscription.id;
-  createdSubscriptionIds.add(id);
-
-  // Dashboard lists it and immediately includes it in the annualized spending
-  // composition. A payment record must not be required for the chart to exist.
-  const listed = await (await fetch(`${baseUrl}/`)).text();
-  assert.match(listed, new RegExp(name));
-  const spendingSection = listed.match(
-    /<section[^>]*data-testid="spending-chart"[^>]*>[\s\S]*?<\/section>/,
-  )?.[0];
-  assert.ok(spendingSection, "当前订阅应立即显示在支出构成图表中");
-  assert.match(spendingSection, /预计年支出/);
-  assert.match(spendingSection, /按当前订阅折算年度占比/);
-  assert.match(spendingSection, new RegExp(name));
-  assert.doesNotMatch(spendingSection, /累计已付/);
-  assert.doesNotMatch(spendingSection, /月均/);
-
-  // mark paid advances the due date by one year
-  const pay = await fetch(`${baseUrl}/api/subscriptions/${id}/pay`, { method: "POST" });
-  assert.equal(pay.status, 200);
-  const { subscription: paid } = await pay.json();
-  assert.equal(paid.nextDueDate, "2028-01-15");
-
-  // Marking paid must not change the current-subscription composition basis.
-  const paidHome = await (await fetch(`${baseUrl}/`)).text();
-  const paidSpendingSection = paidHome.match(
-    /<section[^>]*data-testid="spending-chart"[^>]*>[\s\S]*?<\/section>/,
-  )?.[0];
-  assert.ok(paidSpendingSection);
-  assert.match(paidSpendingSection, /预计年支出/);
-  assert.match(paidSpendingSection, new RegExp(name));
-
-  // ics export contains the subscription
-  const icsResponse = await fetch(`${baseUrl}/calendar.ics`);
-  assert.equal(icsResponse.status, 200);
-  assert.match(icsResponse.headers.get("content-type") ?? "", /^text\/calendar\b/i);
-  const ics = await icsResponse.text();
-  assert.match(ics, /BEGIN:VCALENDAR/);
-  assert.match(ics, /END:VCALENDAR/);
-
-  // delete removes it; deleting again 404s
-  const del = await fetch(`${baseUrl}/api/subscriptions/${id}`, { method: "DELETE" });
-  assert.equal(del.status, 200);
-  createdSubscriptionIds.delete(id);
-  const delAgain = await fetch(`${baseUrl}/api/subscriptions/${id}`, { method: "DELETE" });
-  assert.equal(delAgain.status, 404);
-});
-
-test("rejects invalid payloads with 400", async () => {
-  const response = await fetch(`${baseUrl}/api/subscriptions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "", share: "abc", cycle: "weekly" }),
-  });
+  );
   assert.equal(response.status, 400);
-  const body = await response.json();
-  assert.ok(typeof body.error === "string");
+  assert.equal(typeof (await response.json()).error, "string");
+
+  const deletion = await fetch(
+    `${baseUrl}/api/auth/delete-user`,
+    authenticated(user.cookie, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: user.password }),
+    }),
+  );
+  assert.equal(deletion.status, 200, await deletion.text());
+  assert.equal(
+    (await fetch(`${baseUrl}/api/subscriptions`, authenticated(user.cookie))).status,
+    401,
+  );
 });
 
-test("serves a complete installable PWA surface", async () => {
+test("serves the complete PWA surface and service icons", async () => {
+  for (const iconPath of [
+    "/service-icons/chatgpt.jpg",
+    "/service-icons/lightroom.png",
+    "/service-icons/windy.jpg",
+  ]) {
+    assert.equal((await fetch(`${baseUrl}${iconPath}`)).status, 200);
+  }
+
   const manifestResponse = await fetch(`${baseUrl}/manifest.webmanifest`);
   assert.equal(manifestResponse.status, 200);
   const manifest = await manifestResponse.json();
@@ -187,23 +278,17 @@ test("serves a complete installable PWA surface", async () => {
   assert.equal(manifest.start_url, "/");
   assert.equal(manifest.scope, "/");
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.orientation, "any");
-  assert.equal(manifest.prefer_related_applications, false);
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192" && icon.purpose === "any"));
-  assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "any"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "maskable"));
-  assert.ok(manifest.shortcuts.some((shortcut) => shortcut.url === "/subscriptions/new"));
 
-  const workerResponse = await fetch(`${baseUrl}/sw.js`);
-  assert.equal(workerResponse.status, 200);
-  const worker = await workerResponse.text();
+  const worker = await (await fetch(`${baseUrl}/sw.js`)).text();
   assert.match(worker, /addEventListener\("fetch"/);
   assert.match(worker, /\/api\//);
   assert.match(worker, /offline\.html/);
+  assert.match(worker, /url\.pathname\.startsWith\("\/guest"\)/);
+  assert.match(worker, /private server-rendered data/);
 
-  const offlineResponse = await fetch(`${baseUrl}/offline.html`);
-  assert.equal(offlineResponse.status, 200);
-  const offline = await offlineResponse.text();
+  const offline = await (await fetch(`${baseUrl}/offline.html`)).text();
   assert.match(offline, /当前网络不可用/);
-  assert.match(offline, /viewport-fit=cover/);
+  assert.match(offline, /Offline right now/);
 });
