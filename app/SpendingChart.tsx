@@ -6,7 +6,7 @@ import { findPresetByName } from "../lib/presets";
 import { formatYuan, type SpendingRow } from "../lib/subscriptions";
 
 interface Props {
-  totalPaidCents: number;
+  totalAnnualCents: number;
   rows: SpendingRow[];
   percents: number[];
 }
@@ -149,7 +149,7 @@ function PieGlyph() {
   );
 }
 
-export function SpendingChart({ totalPaidCents, rows, percents }: Props) {
+export function SpendingChart({ totalAnnualCents, rows, percents }: Props) {
   const [mode, setMode] = useState<"bar" | "pie">("bar");
 
   return (
@@ -157,13 +157,13 @@ export function SpendingChart({ totalPaidCents, rows, percents }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold tracking-tight text-stone-900">支出构成</h2>
-          <p className="mt-0.5 text-xs text-stone-400">查看每项订阅的累计付款占比</p>
+          <p className="mt-0.5 text-xs text-stone-400">按当前订阅折算年度占比</p>
         </div>
         <div className="flex items-center gap-3.5">
           <div className="text-right">
-            <p className="text-[11px] text-stone-400">累计已付</p>
+            <p className="text-[11px] text-stone-400">预计年支出</p>
             <p className="text-lg font-semibold tracking-[-0.03em] text-stone-900">
-              {formatYuan(totalPaidCents)}
+              {formatYuan(totalAnnualCents)}
             </p>
           </div>
           <div className="flex rounded-full border border-white/75 bg-white/55 p-0.5 shadow-sm backdrop-blur-xl">
@@ -213,7 +213,7 @@ export function SpendingChart({ totalPaidCents, rows, percents }: Props) {
                   />
                 </span>
                 <span className="w-16 text-right tabular-nums font-semibold text-stone-800">
-                  {formatYuan(row.paidCents)}
+                  {formatYuan(row.annualCents)}
                 </span>
                 <span className="w-10 text-right tabular-nums text-stone-400">{pct}%</span>
               </li>

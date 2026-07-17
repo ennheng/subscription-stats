@@ -125,40 +125,37 @@ export interface SpendingRow {
   subscriptionId: number;
   name: string;
   cycle: Cycle;
-  paidCents: number;
+  annualCents: number;
 }
 
 export interface SpendingStats {
-  totalPaidCents: number;
+  totalAnnualCents: number;
   rows: SpendingRow[];
   percents: number[];
 }
 
 /**
- * Aggregate paid payment amounts per subscription, sorted desc, with the
- * share (0-1) of total each represents. `percents[i]` aligns with `rows[i]`.
+ * Annualize every current subscription from its billing cycle, then sort by
+ * planned annual cost and calculate its share of the current subscription
+ * portfolio. This intentionally does not depend on payment history.
  */
 export function computeSpending(
-  subs: { id: number; name: string; cycle: Cycle }[],
-  payments: { subscriptionId: number; amountCents: number }[],
+  subs: { id: number; name: string; cycle: Cycle; shareCents: number }[],
 ): SpendingStats {
-  const paidBySub = new Map<number, number>();
-  let totalPaidCents = 0;
-  for (const p of payments) {
-    paidBySub.set(p.subscriptionId, (paidBySub.get(p.subscriptionId) ?? 0) + p.amountCents);
-    totalPaidCents += p.amountCents;
-  }
   const rows = subs
     .map((s) => ({
       subscriptionId: s.id,
       name: s.name,
       cycle: s.cycle,
-      paidCents: paidBySub.get(s.id) ?? 0,
+      annualCents: yearlyCents(s.shareCents, s.cycle),
     }))
-    .filter((r) => r.paidCents > 0)
-    .sort((a, b) => b.paidCents - a.paidCents);
-  const percents = rows.map((r) => (totalPaidCents > 0 ? r.paidCents / totalPaidCents : 0));
-  return { totalPaidCents, rows, percents };
+    .filter((r) => r.annualCents > 0)
+    .sort((a, b) => b.annualCents - a.annualCents);
+  const totalAnnualCents = rows.reduce((sum, row) => sum + row.annualCents, 0);
+  const percents = rows.map((row) =>
+    totalAnnualCents > 0 ? row.annualCents / totalAnnualCents : 0,
+  );
+  return { totalAnnualCents, rows, percents };
 }
 
 /** Parse a yuan string like "25" or "25.5" into cents; null when invalid. */

@@ -1,7 +1,7 @@
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import Link from "next/link";
 import { getDb } from "../db";
-import { payments, subscriptions } from "../db/schema";
+import { subscriptions } from "../db/schema";
 import { findPresetByName } from "../lib/presets";
 import {
   computeSpending,
@@ -24,16 +24,8 @@ export default async function Home() {
     .select()
     .from(subscriptions)
     .orderBy(asc(subscriptions.nextDueDate), asc(subscriptions.id));
-  const paidRows = await db
-    .select({
-      subscriptionId: payments.subscriptionId,
-      amountCents: payments.amountCents,
-    })
-    .from(payments)
-    .where(eq(payments.status, "paid"));
-
   const stats = computeStats(rows);
-  const spending = computeSpending(rows, paidRows);
+  const spending = computeSpending(rows);
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-4 pb-14 pt-6 sm:pb-20 sm:pt-10">
@@ -118,9 +110,9 @@ export default async function Home() {
         <p>日历导出的是当前订阅快照。增删订阅后，请删除旧的「合租订阅」日历并重新导入。</p>
       </div>
 
-      {spending.totalPaidCents > 0 && (
+      {spending.totalAnnualCents > 0 && (
         <SpendingChart
-          totalPaidCents={spending.totalPaidCents}
+          totalAnnualCents={spending.totalAnnualCents}
           rows={spending.rows}
           percents={spending.percents}
         />

@@ -15,7 +15,17 @@ interface Props {
 export function ServiceIcon({ presetId, name, color, className = "" }: Props) {
   const brand = presetId ? brandIconFor(presetId) : undefined;
 
-  if (brand) {
+  if (brand?.kind === "image") {
+    return (
+      <span
+        className={`flex items-center justify-center overflow-hidden rounded-xl bg-cover bg-center ${className}`}
+        style={{ backgroundImage: `url("${brand.src}")` }}
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (brand?.kind === "svg") {
     return (
       <span
         className={`flex items-center justify-center rounded-xl ${className}`}

@@ -84,6 +84,23 @@ test("dashboard renders and full subscription lifecycle works", async () => {
   assert.match(homeHtml, /安装/);
   assert.match(homeHtml, /viewport-fit=cover/);
 
+  const newSubscriptionHtml = await (await fetch(`${baseUrl}/subscriptions/new`)).text();
+  assert.match(newSubscriptionHtml, /Lightroom/);
+  assert.match(newSubscriptionHtml, /Windy/);
+  assert.match(newSubscriptionHtml, /Kimi/);
+  // Accept direct static URLs and an encoded form if the renderer changes.
+  assert.match(newSubscriptionHtml, /service-icons(?:%2F|\/)lightroom\.png/i);
+  assert.match(newSubscriptionHtml, /service-icons(?:%2F|\/)windy\.jpg/i);
+
+  for (const iconPath of [
+    "/service-icons/chatgpt.jpg",
+    "/service-icons/lightroom.png",
+    "/service-icons/windy.jpg",
+  ]) {
+    const iconResponse = await fetch(`${baseUrl}${iconPath}`);
+    assert.equal(iconResponse.status, 200);
+  }
+
   // create a yearly subscription (unique name so re-runs stay unambiguous)
   const name = `TestSub-${Date.now()}`;
   const create = await fetch(`${baseUrl}/api/subscriptions`, {
@@ -106,9 +123,19 @@ test("dashboard renders and full subscription lifecycle works", async () => {
   const id = subscription.id;
   createdSubscriptionIds.add(id);
 
-  // dashboard lists it
+  // Dashboard lists it and immediately includes it in the annualized spending
+  // composition. A payment record must not be required for the chart to exist.
   const listed = await (await fetch(`${baseUrl}/`)).text();
   assert.match(listed, new RegExp(name));
+  const spendingSection = listed.match(
+    /<section[^>]*data-testid="spending-chart"[^>]*>[\s\S]*?<\/section>/,
+  )?.[0];
+  assert.ok(spendingSection, "当前订阅应立即显示在支出构成图表中");
+  assert.match(spendingSection, /预计年支出/);
+  assert.match(spendingSection, /按当前订阅折算年度占比/);
+  assert.match(spendingSection, new RegExp(name));
+  assert.doesNotMatch(spendingSection, /累计已付/);
+  assert.doesNotMatch(spendingSection, /月均/);
 
   // mark paid advances the due date by one year
   const pay = await fetch(`${baseUrl}/api/subscriptions/${id}/pay`, { method: "POST" });
@@ -116,13 +143,14 @@ test("dashboard renders and full subscription lifecycle works", async () => {
   const { subscription: paid } = await pay.json();
   assert.equal(paid.nextDueDate, "2028-01-15");
 
-  // 月均支出只属于顶部概览,不要在「累计已付」图表标题区重复展示。
+  // Marking paid must not change the current-subscription composition basis.
   const paidHome = await (await fetch(`${baseUrl}/`)).text();
-  const spendingSection = paidHome.match(
+  const paidSpendingSection = paidHome.match(
     /<section[^>]*data-testid="spending-chart"[^>]*>[\s\S]*?<\/section>/,
   )?.[0];
-  assert.ok(spendingSection, "累计已付图表应在存在付款记录时显示");
-  assert.doesNotMatch(spendingSection, /月均/);
+  assert.ok(paidSpendingSection);
+  assert.match(paidSpendingSection, /预计年支出/);
+  assert.match(paidSpendingSection, new RegExp(name));
 
   // ics export contains the subscription
   const icsResponse = await fetch(`${baseUrl}/calendar.ics`);
