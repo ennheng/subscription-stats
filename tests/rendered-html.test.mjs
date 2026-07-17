@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -71,6 +72,7 @@ function authenticated(cookie, init = {}) {
 test.before(async () => {
   serverProcess = spawn("npx", ["vinext", "dev", "--port", String(PORT)], {
     cwd: root,
+    detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
     shell: process.platform === "win32",
     env: { ...process.env, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
@@ -80,7 +82,7 @@ test.before(async () => {
   await waitForServer();
 });
 
-test.after(() => {
+test.after(async () => {
   if (serverProcess) {
     if (process.platform === "win32") {
       spawnSync("taskkill", ["/PID", String(serverProcess.pid), "/T", "/F"], {
@@ -88,7 +90,15 @@ test.after(() => {
         shell: true,
       });
     } else {
-      try { serverProcess.kill("SIGKILL"); } catch {}
+      const closed = serverProcess.exitCode === null
+        ? Promise.race([
+            once(serverProcess, "close"),
+            new Promise((resolve) => setTimeout(resolve, 5_000)),
+          ])
+        : Promise.resolve();
+      try { process.kill(-serverProcess.pid, "SIGKILL"); }
+      catch { try { serverProcess.kill("SIGKILL"); } catch {} }
+      await closed;
     }
   }
 
