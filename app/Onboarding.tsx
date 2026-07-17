@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "onboarding-seen-v1";
 
@@ -19,6 +19,10 @@ const steps = [
   },
 ];
 
+const subscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 function readInitialStep(): number | null {
   if (typeof window === "undefined") return null;
   try {
@@ -29,6 +33,11 @@ function readInitialStep(): number | null {
 }
 
 export function Onboarding() {
+  const hydrated = useSyncExternalStore(
+    subscribe,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
   const [step, setStep] = useState<number | null>(readInitialStep);
 
   function finish() {
@@ -40,7 +49,7 @@ export function Onboarding() {
     setStep(null);
   }
 
-  if (step === null) return null;
+  if (!hydrated || step === null) return null;
   const current = steps[step];
   const isLast = step === steps.length - 1;
 

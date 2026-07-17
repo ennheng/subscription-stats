@@ -71,8 +71,7 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
         setError(body?.error ?? "删除失败,请重试");
         return;
       }
-      router.push("/");
-      router.refresh();
+      window.location.replace("/");
     } finally {
       setDeleting(false);
     }
@@ -95,8 +94,7 @@ export function SubscriptionForm({ mode, subscriptionId, initial }: Props) {
         setError(body?.error ?? "保存失败,请重试");
         return;
       }
-      router.push("/");
-      router.refresh();
+      window.location.replace("/");
     } finally {
       setPending(false);
     }

@@ -81,6 +81,8 @@ test("dashboard renders and full subscription lifecycle works", async () => {
   assert.match(homeHtml, /月均/);
   assert.match(homeHtml, /新增订阅/);
   assert.match(homeHtml, /导出日历/);
+  assert.match(homeHtml, /安装/);
+  assert.match(homeHtml, /viewport-fit=cover/);
 
   // create a yearly subscription (unique name so re-runs stay unambiguous)
   const name = `TestSub-${Date.now()}`;
@@ -147,4 +149,33 @@ test("rejects invalid payloads with 400", async () => {
   assert.equal(response.status, 400);
   const body = await response.json();
   assert.ok(typeof body.error === "string");
+});
+
+test("serves a complete installable PWA surface", async () => {
+  const manifestResponse = await fetch(`${baseUrl}/manifest.webmanifest`);
+  assert.equal(manifestResponse.status, 200);
+  const manifest = await manifestResponse.json();
+  assert.equal(manifest.id, "/");
+  assert.equal(manifest.start_url, "/");
+  assert.equal(manifest.scope, "/");
+  assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.orientation, "any");
+  assert.equal(manifest.prefer_related_applications, false);
+  assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192" && icon.purpose === "any"));
+  assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "any"));
+  assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "maskable"));
+  assert.ok(manifest.shortcuts.some((shortcut) => shortcut.url === "/subscriptions/new"));
+
+  const workerResponse = await fetch(`${baseUrl}/sw.js`);
+  assert.equal(workerResponse.status, 200);
+  const worker = await workerResponse.text();
+  assert.match(worker, /addEventListener\("fetch"/);
+  assert.match(worker, /\/api\//);
+  assert.match(worker, /offline\.html/);
+
+  const offlineResponse = await fetch(`${baseUrl}/offline.html`);
+  assert.equal(offlineResponse.status, 200);
+  const offline = await offlineResponse.text();
+  assert.match(offline, /当前网络不可用/);
+  assert.match(offline, /viewport-fit=cover/);
 });

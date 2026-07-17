@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f2ee;
+  --background: #f5f2ed;
   --foreground: #1c1917;
   --accent: #ea580c;
 }
@@ -17,32 +17,47 @@
 body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  /* Soft warm gradient canvas so the glass panels have something to refract. */
   background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(251, 146, 60, 0.14), transparent 60%),
-    radial-gradient(1000px 500px at -10% 20%, rgba(56, 189, 248, 0.10), transparent 55%),
-    radial-gradient(900px 600px at 50% 110%, rgba(167, 139, 250, 0.10), transparent 60%),
+    radial-gradient(900px 520px at 82% -8%, rgba(249, 115, 22, 0.16), transparent 62%),
+    radial-gradient(760px 520px at -12% 28%, rgba(14, 165, 233, 0.09), transparent 64%),
+    radial-gradient(820px 520px at 52% 108%, rgba(139, 92, 246, 0.08), transparent 64%),
     var(--background);
   background-attachment: fixed;
   min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+::selection {
+  background: rgba(234, 88, 12, 0.18);
 }
 
 @utility glass {
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.58);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.72);
   box-shadow:
-    0 8px 32px rgba(28, 25, 23, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    0 10px 36px rgba(28, 25, 23, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 @utility glass-strong {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.74);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.78);
   box-shadow:
-    0 12px 40px rgba(28, 25, 23, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    0 16px 50px rgba(28, 25, 23, 0.085),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }

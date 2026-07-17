@@ -57,10 +57,10 @@ export function MarkPaidButton({
         disabled={pending}
         title="标记已付"
         aria-label="标记已付"
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-sm transition-colors disabled:opacity-50 ${
+        className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm shadow-sm backdrop-blur-xl transition-all hover:scale-105 disabled:opacity-50 ${
           justPaid
-            ? "bg-green-500 text-white"
-            : "bg-white/70 text-neutral-400 hover:bg-white hover:text-green-600"
+            ? "border-green-400 bg-green-500 text-white"
+            : "border-white/80 bg-white/70 text-stone-400 hover:bg-white hover:text-emerald-600"
         }`}
       >
         {justPaid ? "✓" : pending ? "…" : "✓"}

@@ -24,8 +24,8 @@ const SLICE_COLORS = [
 
 const R = 70; // pie radius
 const ICON_R = 46; // icon circle radius inside pie
-const LEADER_R = 96; // where the leader line elbow sits
-const LABEL_X = 118; // horizontal distance of the flat label segment from center
+const LEADER_R = 88; // where the leader line elbow sits
+const LABEL_X = 88; // keep labels inside narrow viewports
 const C = 110; // center of the 220 viewBox
 
 function polar(angle: number, radius: number) {
@@ -70,8 +70,8 @@ function PieChart({ rows, percents }: { rows: SpendingRow[]; percents: number[] 
   }
 
   return (
-    <div className="flex justify-center py-2">
-      <svg viewBox="0 0 220 220" className="h-64 w-64 overflow-visible">
+    <div className="mt-4 flex justify-center rounded-2xl bg-white/30 py-2 ring-1 ring-white/55">
+      <svg viewBox="0 0 220 220" className="h-60 w-60 overflow-visible sm:h-64 sm:w-64">
         {slices.map(({ row, i, start, end, mid, span }, idx) => {
           const color = SLICE_COLORS[i % SLICE_COLORS.length];
           const edge = polar(mid, R);
@@ -84,9 +84,9 @@ function PieChart({ rows, percents }: { rows: SpendingRow[]; percents: number[] 
           return (
             <g key={row.subscriptionId}>
               <path d={slicePath(start, end)} fill={color} opacity={0.85} stroke="#fff" strokeWidth={1.5} />
-              {/* leader: edge -> elbow -> horizontal out to the (de-overlapped) label */}
+              {/* Keep the label-facing segment horizontal after vertical de-overlap. */}
               <polyline
-                points={`${edge.x},${edge.y} ${elbow.x},${elbow.y} ${labelX},${labelY}`}
+                points={`${edge.x},${edge.y} ${elbow.x},${labelY} ${labelX},${labelY}`}
                 fill="none"
                 stroke={color}
                 strokeWidth={1.25}
@@ -94,11 +94,11 @@ function PieChart({ rows, percents }: { rows: SpendingRow[]; percents: number[] 
               />
               <circle cx={labelX} cy={labelY} r={2} fill={color} />
               <text
-                x={labelX + side * 6}
+                x={labelX + side * 4}
                 y={labelY + 4}
                 textAnchor={side > 0 ? "start" : "end"}
                 className="fill-stone-700"
-                fontSize={11}
+                fontSize={10}
                 fontWeight={600}
               >
                 {row.name} {Math.round(percents[i] * 100)}%
@@ -153,16 +153,20 @@ export function SpendingChart({ totalPaidCents, rows, percents }: Props) {
   const [mode, setMode] = useState<"bar" | "pie">("bar");
 
   return (
-    <section data-testid="spending-chart" className="glass mt-6 rounded-2xl p-5">
+    <section data-testid="spending-chart" className="glass-strong mt-5 rounded-[28px] p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-stone-500">累计已付</h2>
-        <div className="flex items-center gap-3">
-          <p className="text-sm">
-            <span className="text-lg font-semibold tracking-tight text-stone-900">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight text-stone-900">支出构成</h2>
+          <p className="mt-0.5 text-xs text-stone-400">查看每项订阅的累计付款占比</p>
+        </div>
+        <div className="flex items-center gap-3.5">
+          <div className="text-right">
+            <p className="text-[11px] text-stone-400">累计已付</p>
+            <p className="text-lg font-semibold tracking-[-0.03em] text-stone-900">
               {formatYuan(totalPaidCents)}
-            </span>
-          </p>
-          <div className="flex rounded-full border border-white/60 bg-white/50 p-0.5 backdrop-blur-xl">
+            </p>
+          </div>
+          <div className="flex rounded-full border border-white/75 bg-white/55 p-0.5 shadow-sm backdrop-blur-xl">
             {(["bar", "pie"] as const).map((m) => (
               <button
                 key={m}
@@ -170,8 +174,10 @@ export function SpendingChart({ totalPaidCents, rows, percents }: Props) {
                 onClick={() => setMode(m)}
                 title={m === "bar" ? "条状图" : "饼状图"}
                 aria-label={m === "bar" ? "条状图" : "饼状图"}
-                className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
-                  mode === m ? "bg-orange-600 text-white" : "text-stone-500 hover:text-stone-700"
+                className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${
+                  mode === m
+                    ? "bg-orange-600 text-white shadow-sm"
+                    : "text-stone-400 hover:bg-white/60 hover:text-stone-700"
                 }`}
               >
                 {m === "bar" ? <BarGlyph /> : <PieGlyph />}
@@ -184,7 +190,7 @@ export function SpendingChart({ totalPaidCents, rows, percents }: Props) {
       {mode === "pie" ? (
         <PieChart rows={rows} percents={percents} />
       ) : (
-        <ul className="mt-4 space-y-3">
+        <ul className="mt-5 space-y-3.5 rounded-2xl bg-white/24 p-3 ring-1 ring-white/45 sm:p-4">
           {rows.map((row, i) => {
             const pct = Math.round(percents[i] * 100);
             const preset = findPresetByName(row.name);
@@ -194,10 +200,10 @@ export function SpendingChart({ totalPaidCents, rows, percents }: Props) {
                   presetId={preset?.id}
                   name={row.name}
                   color={preset?.color}
-                  className="h-7 w-7 shrink-0 text-xs"
+                  className="h-8 w-8 shrink-0 text-xs shadow-sm ring-1 ring-white/60"
                 />
-                <span className="w-24 truncate text-stone-600">{row.name}</span>
-                <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
+                <span className="w-24 truncate font-medium text-stone-600">{row.name}</span>
+                <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-stone-200/55 shadow-inner">
                   <span
                     className="absolute inset-y-0 left-0 rounded-full"
                     style={{
@@ -206,7 +212,7 @@ export function SpendingChart({ totalPaidCents, rows, percents }: Props) {
                     }}
                   />
                 </span>
-                <span className="w-16 text-right tabular-nums font-medium text-stone-800">
+                <span className="w-16 text-right tabular-nums font-semibold text-stone-800">
                   {formatYuan(row.paidCents)}
                 </span>
                 <span className="w-10 text-right tabular-nums text-stone-400">{pct}%</span>
