@@ -4,6 +4,8 @@
 
 **In one sentence: remember when every subscription renews and how much it really costs per year — especially handy when you share plans with friends.**
 
+**Try it now**: [subscription-stats.1290875146ennheng.workers.dev](https://subscription-stats.1290875146ennheng.workers.dev) (guest mode, no sign-up) · **Android APK**: [download from Releases](https://github.com/ennheng/subscription-stats/releases/latest)
+
 ![Landing page](docs/screenshots/landing-en.png)
 
 ## What problem it solves

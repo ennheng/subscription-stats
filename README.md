@@ -4,6 +4,8 @@
 
 **一句话:帮你记住每个订阅什么时候扣钱、一年到底花了多少钱——尤其适合合租/拼车分摊的场景。**
 
+**在线体验**:[subscription-stats.1290875146ennheng.workers.dev](https://subscription-stats.1290875146ennheng.workers.dev)(打开即用,游客模式免注册) · **Android APK**:[Releases 页面下载](https://github.com/ennheng/subscription-stats/releases/latest)
+
 ![订阅统计首页](docs/screenshots/landing-zh.png)
 
 ## 它解决什么问题
