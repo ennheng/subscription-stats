@@ -50,7 +50,10 @@
     },
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.4"
-    }
+    },
+    "@emnapi/core": "1.11.2",
+    "@emnapi/runtime": "1.11.2",
+    "@emnapi/wasi-threads": "1.2.2"
   },
   "type": "module"
 }
