@@ -109,7 +109,7 @@ test.after(async () => {
       "wrangler",
       "d1",
       "execute",
-      "site-creator-d1",
+      "subscription-stats-d1",
       "--local",
       "--command",
       `DELETE FROM user WHERE username LIKE '${escapedPrefix}%';`,
@@ -256,6 +256,22 @@ test("authenticated validation rejects invalid payloads", async () => {
   );
   assert.equal(response.status, 400);
   assert.equal(typeof (await response.json()).error, "string");
+
+  // Account deletion must cascade through owned subscriptions and payments.
+  const creation = await fetch(
+    `${baseUrl}/api/subscriptions`,
+    authenticated(user.cookie, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Cascade Check",
+        share: "10",
+        cycle: "monthly",
+        nextDueDate: "2027-01-15",
+      }),
+    }),
+  );
+  assert.equal(creation.status, 201);
 
   const deletion = await fetch(
     `${baseUrl}/api/auth/delete-user`,

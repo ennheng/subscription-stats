@@ -101,9 +101,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: messages.invalidId }, { status: 400 });
     }
 
-    const payload = (await request.json()) as Parameters<
-      typeof validateSubscriptionPayload
-    >[0];
+    let payload: Parameters<typeof validateSubscriptionPayload>[0];
+    try {
+      payload = (await request.json()) as Parameters<
+        typeof validateSubscriptionPayload
+      >[0];
+    } catch {
+      return NextResponse.json({ error: messages.invalidPayload }, { status: 400 });
+    }
     const parsed = validateSubscriptionPayload(payload, locale);
     if ("error" in parsed) {
       return NextResponse.json({ error: parsed.error }, { status: 400 });

@@ -1,12 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "subscription-stats",
+  "main": "dist/server/index.js",
   "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
+  "assets": {
+    "directory": "dist/client"
+  },
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "site-creator-d1",
-      "database_id": "eaa25bd6-ce54-4cb7-ac3e-71e3c1604e8d",
+      "database_name": "subscription-stats-d1",
+      "database_id": "1055006c-a2af-49a4-af8d-8bcabf229033",
       "migrations_dir": "drizzle"
     }
   ]

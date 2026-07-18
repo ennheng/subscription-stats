@@ -1,6 +1,7 @@
 import {
   advanceDate,
   formatYuan,
+  settleCurrentPeriod,
   type Cycle,
 } from "./subscriptions";
 
@@ -86,7 +87,7 @@ export function markGuestSubscriptionPaid(id: number) {
   const rows = readGuestSubscriptions();
   const row = rows.find((item) => item.id === id);
   if (!row) return false;
-  row.nextDueDate = advanceDate(row.nextDueDate, row.cycle);
+  row.nextDueDate = settleCurrentPeriod(row.nextDueDate, row.cycle);
   writeGuestSubscriptions(rows);
   return true;
 }

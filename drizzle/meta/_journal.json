@@ -22,6 +22,13 @@
       "when": 1784289976679,
       "tag": "0002_premium_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784306800000,
+      "tag": "0003_ordinary_wolfpack",
+      "breakpoints": true
     }
   ]
 }

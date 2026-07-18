@@ -52,10 +52,6 @@ export function PwaInstall() {
   const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
-    }
-
     function handleInstallPrompt(event: Event) {
       event.preventDefault();
       setInstallPrompt(event as BeforeInstallPromptEvent);

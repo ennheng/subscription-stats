@@ -55,10 +55,10 @@ export async function GET(request: NextRequest) {
     for (let i = 0; i < OCCURRENCES; i += 1) {
       const description = [
         sub.ownerContact
-          ? `${locale === "zh-CN" ? "联系人" : "Contact"}:${sub.ownerContact}`
+          ? `${locale === "zh-CN" ? "联系人" : "Contact"}: ${sub.ownerContact}`
           : "",
-        `${locale === "zh-CN" ? "我的份额" : "My share"}:${formatYuan(sub.shareCents)}`,
-        sub.note ? `${locale === "zh-CN" ? "备注" : "Notes"}:${sub.note}` : "",
+        `${locale === "zh-CN" ? "我的份额" : "My share"}: ${formatYuan(sub.shareCents)}`,
+        sub.note ? `${locale === "zh-CN" ? "备注" : "Notes"}: ${sub.note}` : "",
       ]
         .filter(Boolean)
         .join("\n");

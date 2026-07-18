@@ -155,7 +155,7 @@
   <div class="shell">
     <header>
       <div class="brand">
-        <div class="logo">R</div>
+        <div class="logo">订</div>
         <div><h1 id="brand">订阅统计</h1><p class="tagline" id="tagline">订阅支出，一目了然</p></div>
       </div>
       <div class="top-actions">
@@ -338,7 +338,7 @@
         if(index>=0)rows[index]=value; else rows.push(value); persist(); closeForm(); toast(t.saved);
       }
       function remove() { const row=rows.find(item=>item.id===editingId),t=dict[locale]; if(!row||!confirm(t.confirmDelete(row.name)))return; rows=rows.filter(item=>item.id!==editingId); persist(); closeForm(); toast(t.deleted); }
-      function markPaid(id) { const row=rows.find(item=>item.id===id),t=dict[locale]; if(!row||!confirm(t.confirmPaid(row.name)))return; row.nextDueDate=advance(row.nextDueDate,row.cycle); persist(); toast(t.advanced); }
+      function markPaid(id) { const row=rows.find(item=>item.id===id),t=dict[locale]; if(!row||!confirm(t.confirmPaid(row.name)))return; let due=advance(row.nextDueDate,row.cycle); while(daysLeft(due)<0)due=advance(due,row.cycle); row.nextDueDate=due; persist(); toast(t.advanced); }
 
       const escapeIcs = value => String(value).replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n");
       function exportIcs() {

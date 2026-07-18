@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { dictionaryFor } from "../lib/i18n";
 import { I18nProvider } from "./I18nProvider";
 import { getLocale } from "./locale";
+import { ServiceWorkerRegistration } from "./ServiceWorkerRegistration";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -82,6 +83,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <I18nProvider locale={locale}>{children}</I18nProvider>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

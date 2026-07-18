@@ -69,7 +69,7 @@ export function WelcomeView() {
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-6 sm:px-8 sm:py-10">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-orange-700 text-xl font-bold text-white shadow-[0_10px_24px_rgba(234,88,12,0.25)] ring-1 ring-white/70">R</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-orange-700 text-xl font-bold text-white shadow-[0_10px_24px_rgba(234,88,12,0.25)] ring-1 ring-white/70">订</span>
           <div>
             <h1 className="text-2xl font-semibold tracking-[-0.04em] text-stone-900">{t.brandNameFull}</h1>
             <p className="text-xs text-stone-400">{t.tagline}</p>

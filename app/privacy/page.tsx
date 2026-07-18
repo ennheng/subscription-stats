@@ -30,7 +30,7 @@ export default async function PrivacyPage() {
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8 sm:py-12">
       <header className="flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-600 font-bold text-white shadow-lg shadow-orange-600/20">R</span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-600 font-bold text-white shadow-lg shadow-orange-600/20">订</span>
           <span className="text-xl font-semibold tracking-tight text-stone-900">{t.brandNameFull}</span>
         </Link>
         <LanguageToggle />

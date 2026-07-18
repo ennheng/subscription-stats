@@ -63,6 +63,8 @@ export function subscriptionApiMessages(locale: ApiLocale) {
         invalidShare: "Enter a valid share, such as 25 or 25.5",
         invalidCycle: "Choose a billing cycle",
         invalidDate: "Enter a valid renewal date",
+        tooLong: "Name, contact or notes are too long.",
+        invalidPayload: "Request body must be valid JSON.",
         limit: "Each account can store up to 200 subscriptions.",
       }
     : {
@@ -73,6 +75,8 @@ export function subscriptionApiMessages(locale: ApiLocale) {
         invalidShare: "我的份额格式不正确，请输入数字（如 25 或 25.5）",
         invalidCycle: "请选择付款周期",
         invalidDate: "下次到期日格式不正确",
+        tooLong: "名称、联系人或备注超出长度限制。",
+        invalidPayload: "请求体不是有效的 JSON。",
         limit: "每个账号最多可保存 200 项订阅。",
       };
 }
@@ -90,6 +94,8 @@ export function validateSubscriptionPayload(payload: SubscriptionPayload, locale
   const nextDueDate = payload.nextDueDate ?? "";
 
   if (!name) return { error: messages.invalidName } as const;
+  if (name.length > 80 || ownerContact.length > 80 || note.length > 300)
+    return { error: messages.tooLong } as const;
   if (totalPriceRaw !== "" && (totalPriceCents === null || totalPriceCents < 0))
     return { error: messages.invalidTotal } as const;
   if (shareCents === null || shareCents < 0)
@@ -112,9 +118,14 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const payload = (await request.json()) as SubscriptionPayload;
     const locale = apiLocale(request);
     const messages = subscriptionApiMessages(locale);
+    let payload: SubscriptionPayload;
+    try {
+      payload = (await request.json()) as SubscriptionPayload;
+    } catch {
+      return NextResponse.json({ error: messages.invalidPayload }, { status: 400 });
+    }
     const parsed = validateSubscriptionPayload(payload, locale);
     if ("error" in parsed) {
       return NextResponse.json({ error: parsed.error }, { status: 400 });

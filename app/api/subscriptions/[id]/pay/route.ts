@@ -49,22 +49,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: messages.notFound }, { status: 404 });
     }
 
-    await db.insert(payments).values({
-      subscriptionId: id,
-      periodDueDate: subscription.nextDueDate,
-      amountCents: subscription.shareCents,
-      status: "paid",
-      paidAt: new Date().toISOString(),
-    });
-
     const nextDueDate = settleCurrentPeriod(subscription.nextDueDate, subscription.cycle);
-    const [updated] = await db
-      .update(subscriptions)
-      .set({ nextDueDate })
-      .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, session.user.id)))
-      .returning();
+    const [, updatedRows] = await db.batch([
+      db.insert(payments).values({
+        subscriptionId: id,
+        periodDueDate: subscription.nextDueDate,
+        amountCents: subscription.shareCents,
+        status: "paid",
+        paidAt: new Date().toISOString(),
+      }),
+      db
+        .update(subscriptions)
+        .set({ nextDueDate })
+        .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, session.user.id)))
+        .returning(),
+    ]);
 
-    return NextResponse.json({ subscription: updated });
+    return NextResponse.json({ subscription: updatedRows[0] });
   } catch (error) {
     return NextResponse.json({ error: toRouteErrorMessage(error) }, { status: 500 });
   }
